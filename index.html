@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trip Planner</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>Trip Planner</h1>
+      <p class="subtitle">Plan trips and keep track of dates, destinations, transport, accommodation and cost.</p>
+    </header>
+
+    <form id="trip-form" class="trip-form">
+      <input type="hidden" id="trip-id" />
+
+      <div class="field">
+        <label for="destination">Destination</label>
+        <input type="text" id="destination" placeholder="e.g. Kyoto, Japan" required />
+      </div>
+
+      <div class="field">
+        <label for="date">Start date</label>
+        <input type="date" id="date" required />
+      </div>
+
+      <div class="field">
+        <label for="duration">Duration (days)</label>
+        <input type="number" id="duration" min="1" step="1" placeholder="e.g. 5" required />
+      </div>
+
+      <div class="field">
+        <label for="transport">Mode of transport</label>
+        <select id="transport" required>
+          <option value="" disabled selected>Select transport</option>
+          <option value="Flight">Flight</option>
+          <option value="Train">Train</option>
+          <option value="Car">Car</option>
+          <option value="Bus">Bus</option>
+          <option value="Ship">Ship</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="accommodation">Accommodation</label>
+        <select id="accommodation" required>
+          <option value="" disabled selected>Select accommodation</option>
+          <option value="Hotel">Hotel</option>
+          <option value="Hostel">Hostel</option>
+          <option value="Airbnb / Rental">Airbnb / Rental</option>
+          <option value="Camping">Camping</option>
+          <option value="Friends/Family">Friends/Family</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="cost">Estimated cost ($)</label>
+        <input type="number" id="cost" min="0" step="0.01" placeholder="e.g. 1200" required />
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" id="submit-btn">Add trip</button>
+        <button type="button" id="cancel-btn" class="secondary hidden">Cancel edit</button>
+      </div>
+    </form>
+
+    <section class="summary" id="summary">
+      <div class="summary-item">
+        <span class="summary-label">Trips planned</span>
+        <span class="summary-value" id="trip-count">0</span>
+      </div>
+      <div class="summary-item">
+        <span class="summary-label">Total estimated cost</span>
+        <span class="summary-value" id="total-cost">$0.00</span>
+      </div>
+    </section>
+
+    <section class="trips">
+      <h2>Your Trips</h2>
+      <div id="trip-list" class="trip-list">
+        <p class="empty-state" id="empty-state">No trips yet. Add one above to get started.</p>
+      </div>
+    </section>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
