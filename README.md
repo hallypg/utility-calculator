@@ -42,16 +42,30 @@ own phone.
 It can also be served by any static host, or opened straight from a local copy
 of `index.html`.
 
-### 2. Have them install it
+### 2. Have them install it — before entering any data
 
-Send them the link and ask them to add it to their home screen. **This step
-matters — it is not cosmetic.** On iPhone, Safari erases a website's stored data
-after seven days without a visit, but apps added to the home screen are exempt.
-A once-a-month billing app opened in a normal tab could lose its records between
-uses.
+Send them the link and ask them to add it to their home screen **first, before
+typing anything in**. This step is not cosmetic, for two separate reasons.
 
-- **iPhone (Safari):** Share button → *Add to Home Screen*.
+**A home-screen app has its own storage, separate from the browser.** Data
+entered in a browser tab does not carry over when the app is later installed —
+the installed app opens empty, which looks exactly like data loss. Install
+first, enter data second.
+
+**On iPhone, stored data is deleted after seven days without a visit.** That is
+iOS's cap on script-writable storage, and it applies to sites opened in a
+browser. A home-screen web app runs in its own container with its own usage
+counter and is exempt. A once-a-month billing app used in a plain tab would lose
+its records between uses.
+
+- **iPhone:** Share button → *Add to Home Screen*. Safari is the simplest route
+  to recommend, though since iOS 16.4 Chrome, Edge and Firefox can also create
+  real home-screen web apps. On iOS before 16.4, only Safari can — other
+  browsers add a plain bookmark, which does not get the protections above.
 - **Android (Chrome):** menu → *Add to Home screen* / *Install app*.
+
+Worth warning them: clearing the browser's website data can also clear the
+home-screen app's data. Keep backups (see below).
 
 ### 3. First run
 
