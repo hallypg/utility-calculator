@@ -210,6 +210,7 @@ textarea { min-height: 80px; resize: vertical; }
 .field.err input { border-color: var(--danger); }
 .field-err { color: var(--danger); font-size: 13px; font-weight: 600; margin-top: 6px; }
 .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.month-field { display: grid; grid-template-columns: 1.7fr 1fr; gap: 10px; }
 
 .switch { display: flex; align-items: center; gap: 10px; }
 .switch input { width: auto; min-height: 0; }

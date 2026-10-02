@@ -143,6 +143,15 @@ and number formatting, so separators and month names follow automatically.
 Nothing else needs touching — the Settings picker is built from `LANGUAGES`, and
 `tests/i18n.test.mjs` checks that no untranslated key leaks into the UI.
 
+Note the month picker is built in-app from two `<select>`s rather than using
+`<input type="month">`. A native date control is drawn by the operating system
+in the *phone's* language, which left English month names sitting inside a
+Vietnamese screen. Please don't swap it back for the native input.
+
+A few things still come from the OS and cannot be translated by the page: the
+buttons in confirm and alert dialogs, the file picker used by Restore, and the
+on-screen keyboard. They follow the phone's own language setting.
+
 ## Adding cloud sync later
 
 The storage layer is confined to `State` in `js/store.js` — `load`, `save` and

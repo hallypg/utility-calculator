@@ -72,6 +72,35 @@ await step('vi: money uses Vietnamese separators and no decimals', async () => {
   if (!txt.trim().endsWith('₫')) throw new Error('symbol not trailing: ' + txt);
 });
 
+await step('vi: month picker uses Vietnamese month names', async () => {
+  const months = await vi.$$eval('#b-month-m option', els => els.map(e => e.textContent));
+  if (months.length !== 12) throw new Error('expected 12 months, got ' + months.length);
+  // ICU renders the standalone form capitalised ("Tháng 10"); either case is correct.
+  if (!/^tháng 10$/i.test(months[9])) throw new Error('October reads "' + months[9] + '"');
+  if (months.some(m => /^(January|October|December)$/.test(m)))
+    throw new Error('English month leaked into the picker: ' + JSON.stringify(months));
+  // The hidden field the form reads must track the selects.
+  await vi.selectOption('#b-month-m', '11');
+  await vi.waitForFunction(() => document.getElementById('b-month').value.endsWith('-11'));
+  await vi.selectOption('#b-month-m', '10');
+  await vi.waitForFunction(() => document.getElementById('b-month').value.endsWith('-10'));
+});
+
+await step('en: month picker uses English month names', async () => {
+  const enPage = await (await browser.newContext({ viewport: { width: 390, height: 844 }, locale: 'en-GB' })).newPage();
+  await enPage.goto(BASE + '/index.html', { waitUntil: 'networkidle' });
+  await enPage.evaluate(() => {
+    const d = JSON.parse(localStorage.getItem('rmu.v1'));
+    d.units = [{ id: 'u9', label: 'Z9', tenantName: 'T', phone: '', archived: false, rents: [] }];
+    localStorage.setItem('rmu.v1', JSON.stringify(d));
+  });
+  await enPage.goto(BASE + '/index.html#/bill/u9/2026-10', { waitUntil: 'networkidle' });
+  await enPage.reload({ waitUntil: 'networkidle' });
+  const months = await enPage.$$eval('#b-month-m option', els => els.map(e => e.textContent));
+  if (months[9] !== 'October') throw new Error('got ' + JSON.stringify(months.slice(0, 3)));
+  await enPage.context().close();
+});
+
 await step('vi: invoice renders in Vietnamese', async () => {
   await vi.click('#bill-form button[type="submit"]');
   await vi.waitForURL(/#\/invoice\//);

@@ -135,7 +135,8 @@ await step('rent change does not rewrite past bills', async () => {
   const unitId = await page.evaluate(async () => (await import('./js/store.js')).State.data.bills[0].unitId);
   await page.goto(BASE + '/index.html#/unit/' + unitId);
   await page.fill('#r-amt', '1300');
-  await page.fill('#r-from', '2026-11');
+  await page.selectOption('#r-from-m', '11');
+  await page.selectOption('#r-from-y', '2026');
   await page.click('#rent-form button[type="submit"]');
   await page.waitForTimeout(200);
   const res = await page.evaluate(async () => {

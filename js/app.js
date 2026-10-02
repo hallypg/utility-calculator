@@ -2,7 +2,7 @@ import {
   State, uid, monthKey, monthLabel, monthShort, shiftMonth,
   units, activeUnits, findUnit, addUnit, rentFor, setRent,
   billsFor, findBill, billForMonth, openingReadings, saveBill, deleteBill,
-  compute, money, num, dueDate, fmtDate
+  compute, money, num, dueDate, fmtDate, monthNames
 } from './store.js';
 import { renderInvoice, invoiceFilename, shareInvoice, invoiceText } from './invoice.js';
 import { t, setLang, getLang, detectLang, plural, LANGUAGES } from './i18n.js';
@@ -20,6 +20,47 @@ const ICON = {
   warn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>',
   empty: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l7-4 7 4v14"/><path d="M10 21v-5h4v5"/></svg>'
 };
+
+/* A month picker we render ourselves. The native control is drawn by the OS
+   in the phone's language, which leaves English months inside a Vietnamese
+   screen, so it cannot be used here. */
+function monthField(id, name, value) {
+  const [vy, vm] = value.split('-').map(Number);
+  const thisYear = new Date().getFullYear();
+  const from = Math.min(thisYear - 5, vy);
+  const to = Math.max(thisYear + 2, vy);
+
+  const months = monthNames()
+    .map((label, i) => {
+      const v = String(i + 1).padStart(2, '0');
+      return `<option value="${v}" ${i + 1 === vm ? 'selected' : ''}>${esc(label)}</option>`;
+    })
+    .join('');
+
+  let years = '';
+  for (let y = to; y >= from; y--) {
+    years += `<option value="${y}" ${y === vy ? 'selected' : ''}>${y}</option>`;
+  }
+
+  return `<input type="hidden" id="${id}" name="${name}" value="${esc(value)}">
+    <div class="month-field">
+      <select id="${id}-m" data-mf="${id}" aria-label="${esc(t('bill.month'))}">${months}</select>
+      <select id="${id}-y" data-mf="${id}" aria-label="${esc(t('bill.month'))}">${years}</select>
+    </div>`;
+}
+
+/* Keeps the hidden field (the one forms read) in step with the two selects. */
+function bindMonthFields() {
+  app.querySelectorAll('select[data-mf]').forEach(sel => {
+    sel.addEventListener('change', () => {
+      const id = sel.dataset.mf;
+      const hidden = document.getElementById(id);
+      if (!hidden) return;
+      hidden.value = `${document.getElementById(id + '-y').value}-${document.getElementById(id + '-m').value}`;
+      hidden.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+  });
+}
 
 let toastTimer;
 function toast(msg) {
@@ -203,10 +244,12 @@ function viewUnit(id) {
       <h2>${esc(t('unit.rentHistory'))}</h2>
       <div class="card">
         ${rentRows}
-        <form id="rent-form" class="two" style="margin-top:14px">
-          <div><label for="r-amt">${esc(t('unit.newRent'))}</label><input id="r-amt" name="amount" type="number" inputmode="decimal" step="any" min="0" required></div>
-          <div><label for="r-from">${esc(t('unit.rentStart'))}</label><input id="r-from" name="from" type="month" required value="${now}"></div>
-          <button class="btn block" type="submit" style="grid-column:1/-1">${esc(t('unit.setRent'))}</button>
+        <form id="rent-form" style="margin-top:14px">
+          <div class="field"><label for="r-amt">${esc(t('unit.newRent'))}</label>
+            <input id="r-amt" name="amount" type="number" inputmode="decimal" step="any" min="0" required></div>
+          <div class="field"><label for="r-from-m">${esc(t('unit.rentStart'))}</label>
+            ${monthField('r-from', 'from', now)}</div>
+          <button class="btn block" type="submit">${esc(t('unit.setRent'))}</button>
         </form>
         <p class="tiny" style="margin:10px 0 0">${esc(t('unit.rentNote'))}</p>
       </div>`,
@@ -259,8 +302,8 @@ function viewBill(unitId, month) {
       <form id="bill-form">
         <div class="card">
           <div class="field">
-            <label for="b-month">${esc(t('bill.month'))}</label>
-            <input id="b-month" name="month" type="month" required value="${esc(b.month)}">
+            <label for="b-month-m">${esc(t('bill.month'))}</label>
+            ${monthField('b-month', 'month', b.month)}
           </div>
 
           <h2 style="margin-top:6px">${esc(t('bill.electricity', { unit: s.elecUnit }))}</h2>
@@ -707,6 +750,7 @@ function render() {
     ${view.actions || ''}`;
 
   app.innerHTML = view.body;
+  bindMonthFields();
   view.mount?.();
 
   document.querySelectorAll('.tabbar a').forEach(a => {

@@ -82,6 +82,12 @@ export function monthShort(key) {
   return new Date(y, m - 1, 1).toLocaleDateString(locale(), { month: 'short', year: 'numeric' });
 }
 
+/* Month names in the app's language, for the in-app month picker.
+   A native <input type="month"> follows the phone's language, not ours. */
+export const monthNames = () =>
+  Array.from({ length: 12 }, (_, i) =>
+    new Date(2000, i, 1).toLocaleDateString(locale(), { month: 'long' }));
+
 export const shiftMonth = (key, delta) => {
   const [y, m] = key.split('-').map(Number);
   const d = new Date(y, m - 1 + delta, 1);
