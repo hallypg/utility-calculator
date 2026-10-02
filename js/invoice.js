@@ -2,6 +2,7 @@
    native share sheet. No libraries, so it works offline. */
 
 import { State, compute, money, num, monthLabel, dueDate, fmtDate, invoiceNumber } from './store.js';
+import { t } from './i18n.js';
 
 const W = 1080;
 const PAD = 72;
@@ -61,11 +62,11 @@ export function renderInvoice(bill, unit) {
 
   ctx.fillStyle = 'rgba(255,255,255,0.82)';
   ctx.font = font(600, 26);
-  ctx.fillText('INVOICE', PAD, 74);
+  ctx.fillText(t('inv.heading'), PAD, 74);
 
   ctx.fillStyle = '#FFFFFF';
   ctx.font = font(700, 46);
-  const title = s.propertyName || 'Rental Statement';
+  const title = s.propertyName || t('inv.fallbackTitle');
   ctx.fillText(wrap(ctx, title, W - PAD * 2 - 260)[0], PAD, 132);
 
   ctx.font = font(500, 24);
@@ -85,22 +86,22 @@ export function renderInvoice(bill, unit) {
 
   ctx.fillStyle = MUTED;
   ctx.font = font(600, 22);
-  ctx.fillText('BILLED TO', PAD, y);
-  ctx.fillText('ISSUED', colR, y);
+  ctx.fillText(t('inv.billedTo'), PAD, y);
+  ctx.fillText(t('inv.issued'), colR, y);
 
   y += 38;
   ctx.fillStyle = INK;
   ctx.font = font(700, 32);
-  ctx.fillText(unit.tenantName || 'Tenant', PAD, y);
+  ctx.fillText(unit.tenantName || t('inv.tenant'), PAD, y);
   ctx.font = font(500, 28);
   ctx.fillText(fmtDate(bill.issuedOn ? new Date(bill.issuedOn) : new Date()), colR, y);
 
   y += 36;
   ctx.fillStyle = MUTED;
   ctx.font = font(500, 26);
-  ctx.fillText(`Unit ${unit.label}`, PAD, y);
+  ctx.fillText(t('inv.unit', { label: unit.label }), PAD, y);
   ctx.font = font(600, 22);
-  ctx.fillText('DUE', colR, y + 14);
+  ctx.fillText(t('inv.due'), colR, y + 14);
 
   y += 34;
   if (unit.phone) {
@@ -142,18 +143,18 @@ export function renderInvoice(bill, unit) {
     y += 46;
   };
 
-  row('Rent', monthLabel(bill.month), c.rent);
+  row(t('inv.rent'), monthLabel(bill.month), c.rent);
   row(
-    'Electricity',
+    t('inv.electricity'),
     `${num(bill.elecPrev)} → ${num(bill.elecCurr)}  ·  ${num(c.elecUsed)} ${s.elecUnit} × ${money(bill.elecRate)}`,
     c.elecAmount
   );
   row(
-    'Water',
+    t('inv.water'),
     `${num(bill.waterPrev)} → ${num(bill.waterCurr)}  ·  ${num(c.waterUsed)} ${s.waterUnit} × ${money(bill.waterRate)}`,
     c.waterAmount
   );
-  if (c.adjustment !== 0) row(bill.adjustmentNote || 'Adjustment', '', c.adjustment);
+  if (c.adjustment !== 0) row(bill.adjustmentNote || t('inv.adjustment'), '', c.adjustment);
 
   /* ---- total ---- */
   y += 6;
@@ -164,7 +165,7 @@ export function renderInvoice(bill, unit) {
 
   ctx.fillStyle = BRAND;
   ctx.font = font(700, 30);
-  ctx.fillText('Total due', PAD + 36, y + 66);
+  ctx.fillText(t('inv.totalDue'), PAD + 36, y + 66);
 
   ctx.textAlign = 'right';
   ctx.font = font(700, 46);
@@ -241,15 +242,15 @@ export function invoiceText(bill, unit) {
   const s = State.data.settings;
   const c = compute(bill);
   const lines = [
-    `${s.propertyName || 'Rental Statement'} — ${monthLabel(bill.month)}`,
-    `Unit ${unit.label}${unit.tenantName ? ` · ${unit.tenantName}` : ''}`,
+    `${s.propertyName || t('inv.fallbackTitle')} — ${monthLabel(bill.month)}`,
+    `${t('inv.unit', { label: unit.label })}${unit.tenantName ? ` · ${unit.tenantName}` : ''}`,
     '',
-    `Rent: ${money(c.rent)}`,
-    `Electricity: ${num(c.elecUsed)} ${s.elecUnit} × ${money(bill.elecRate)} = ${money(c.elecAmount)}`,
-    `Water: ${num(c.waterUsed)} ${s.waterUnit} × ${money(bill.waterRate)} = ${money(c.waterAmount)}`
+    `${t('inv.rent')}: ${money(c.rent)}`,
+    `${t('inv.electricity')}: ${num(c.elecUsed)} ${s.elecUnit} × ${money(bill.elecRate)} = ${money(c.elecAmount)}`,
+    `${t('inv.water')}: ${num(c.waterUsed)} ${s.waterUnit} × ${money(bill.waterRate)} = ${money(c.waterAmount)}`
   ];
-  if (c.adjustment !== 0) lines.push(`${bill.adjustmentNote || 'Adjustment'}: ${money(c.adjustment)}`);
-  lines.push('', `TOTAL DUE: ${money(c.total)}`, `Due ${fmtDate(dueDate(bill.month))}`);
+  if (c.adjustment !== 0) lines.push(`${bill.adjustmentNote || t('inv.adjustment')}: ${money(c.adjustment)}`);
+  lines.push('', `${t('inv.totalDueCaps')}: ${money(c.total)}`, t('invoice.due', { date: fmtDate(dueDate(bill.month)) }));
   if (s.invoiceNote) lines.push('', s.invoiceNote);
   return lines.join('\n');
 }

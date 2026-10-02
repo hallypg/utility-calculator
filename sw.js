@@ -1,6 +1,6 @@
 /* Caches the app shell so it opens with no connection at all.
    Bump CACHE when any shell file changes. */
-const CACHE = 'rental-utility-v1';
+const CACHE = 'rental-utility-v2';
 
 const SHELL = [
   './',
@@ -9,6 +9,7 @@ const SHELL = [
   './manifest.webmanifest',
   './js/app.js',
   './js/store.js',
+  './js/i18n.js',
   './js/invoice.js',
   './icons/icon-192.png',
   './icons/icon-512.png',

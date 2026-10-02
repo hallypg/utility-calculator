@@ -1,0 +1,154 @@
+import { chromium } from 'playwright';
+import fs from 'node:fs';
+
+const BASE = 'http://127.0.0.1:8765';
+const OUT = process.env.OUT_DIR || '.';
+const errors = [];
+const step = async (n, f) => { try { await f(); console.log('  ok  ' + n); } catch (e) { console.log('  FAIL ' + n + ' :: ' + e.message); errors.push(n + ': ' + e.message); } };
+
+const browser = await chromium.launch();
+
+/* ---------- a phone set to Vietnamese ---------- */
+const viCtx = await browser.newContext({
+  viewport: { width: 390, height: 844 }, deviceScaleFactor: 2,
+  locale: 'vi-VN', isMobile: true, hasTouch: true
+});
+const vi = await viCtx.newPage();
+vi.on('pageerror', e => errors.push('PAGEERROR(vi): ' + e.message));
+vi.on('console', m => { if (m.type() === 'error') errors.push('CONSOLE(vi): ' + m.text()); });
+
+await vi.goto(BASE + '/index.html', { waitUntil: 'networkidle' });
+
+await step('vi: auto-detected from the phone language', async () => {
+  await vi.waitForSelector('text=Chưa có căn hộ nào');
+  const st = await vi.evaluate(() => JSON.parse(localStorage.getItem('rmu.v1')).settings);
+  if (st.lang !== 'vi') throw new Error('lang=' + st.lang);
+  if (st.currency !== '₫' || st.currencyAfter !== true || st.decimals !== 0)
+    throw new Error('VND defaults not applied: ' + JSON.stringify(st));
+  const htmlLang = await vi.getAttribute('html', 'lang');
+  if (htmlLang !== 'vi') throw new Error('html lang=' + htmlLang);
+});
+
+await step('vi: tab bar is translated', async () => {
+  const labels = await vi.$$eval('.tab-label', els => els.map(e => e.textContent));
+  const want = ['Căn hộ', 'Lịch sử', 'Cài đặt'];
+  if (JSON.stringify(labels) !== JSON.stringify(want))
+    throw new Error('got ' + JSON.stringify(labels));
+});
+
+await step('vi: full flow in Vietnamese', async () => {
+  await vi.click('[data-tab="settings"]');
+  await vi.fill('#s-prop', 'Nhà trọ Hoa Mai');
+  await vi.fill('#s-land', 'Phạm Hải');
+  await vi.fill('#s-er', '3500');
+  await vi.fill('#s-wr', '15000');
+  await vi.fill('#s-note', 'Chuyển khoản Vietcombank 0123456789. Xin cảm ơn!');
+  await vi.click('#set-form button[type="submit"]');
+  await vi.waitForSelector('.toast.show');
+
+  await vi.click('[data-tab="units"]');
+  await vi.click('a[href="#/unit/new"]');
+  await vi.fill('#f-label', 'P101');
+  await vi.fill('#f-tenant', 'Nguyễn Thị Lan');
+  await vi.fill('#f-phone', '0912 345 678');
+  await vi.fill('#f-rent', '3000000');
+  await vi.click('#unit-form button[type="submit"]');
+  await vi.waitForSelector('text=Tiền thuê hiện tại');
+
+  await vi.click('a.btn.primary');
+  await vi.fill('#b-ep', '1200');
+  await vi.fill('#b-ec', '1350');
+  await vi.fill('#b-wp', '40');
+  await vi.fill('#b-wc', '48');
+  // 150 × 3500 = 525.000 ; 8 × 15000 = 120.000 ; + 3.000.000 = 3.645.000
+  await vi.waitForFunction(() =>
+    document.querySelector('#readout .total span:last-child')?.textContent.includes('3.645.000'));
+});
+
+await step('vi: money uses Vietnamese separators and no decimals', async () => {
+  const txt = await vi.textContent('#readout .total span:last-child');
+  if (!txt.includes('3.645.000')) throw new Error('separators wrong: ' + txt);
+  if (txt.includes(',00')) throw new Error('decimals shown for VND: ' + txt);
+  if (!txt.trim().endsWith('₫')) throw new Error('symbol not trailing: ' + txt);
+});
+
+await step('vi: invoice renders in Vietnamese', async () => {
+  await vi.click('#bill-form button[type="submit"]');
+  await vi.waitForURL(/#\/invoice\//);
+  await vi.waitForFunction(() => {
+    const img = document.getElementById('inv-preview');
+    return img && img.src.startsWith('data:image/png') && img.naturalHeight > 400;
+  }, null, { timeout: 5000 });
+  fs.writeFileSync(OUT + '/invoice-vi.png',
+    Buffer.from((await vi.getAttribute('#inv-preview', 'src')).split(',')[1], 'base64'));
+
+  const text = await vi.evaluate(async () => {
+    const m = await import('./js/invoice.js');
+    const st = await import('./js/store.js');
+    const b = st.State.data.bills[0];
+    return m.invoiceText(b, st.findUnit(b.unitId));
+  });
+  for (const want of ['TỔNG PHẢI TRẢ: 3.645.000 ₫', 'Tiền điện: 150 kWh', 'Căn hộ P101', 'Hạn thanh toán']) {
+    if (!text.includes(want)) throw new Error('missing "' + want + '" in:\n' + text);
+  }
+});
+
+await step('vi: screenshots', async () => {
+  await vi.goto(BASE + '/index.html#/units');
+  await vi.waitForSelector('text=Nguyễn Thị Lan');
+  await vi.screenshot({ path: OUT + '/screen-units-vi.png' });
+  const id = await vi.evaluate(async () => (await import('./js/store.js')).State.data.bills[0].unitId);
+  await vi.goto(BASE + '/index.html#/bill/' + id + '/2026-12');
+  await vi.fill('#b-ec', '1500');
+  await vi.fill('#b-wc', '55');
+  await vi.waitForTimeout(150);
+  await vi.screenshot({ path: OUT + '/screen-bill-vi.png', fullPage: true });
+});
+
+await step('vi: switching to English keeps the data', async () => {
+  await vi.goto(BASE + '/index.html#/settings');
+  await vi.selectOption('#s-lang', 'en');
+  await vi.click('#set-form button[type="submit"]');
+  await vi.waitForTimeout(300);
+  await vi.goto(BASE + '/index.html#/units');
+  await vi.waitForSelector('text=Nguyễn Thị Lan');
+  const labels = await vi.$$eval('.tab-label', els => els.map(e => e.textContent));
+  if (labels[0] !== 'Units') throw new Error('did not switch: ' + JSON.stringify(labels));
+  const bills = await vi.evaluate(() => JSON.parse(localStorage.getItem('rmu.v1')).bills.length);
+  if (bills !== 1) throw new Error('data lost on language switch');
+});
+
+await step('vi: the choice survives a reload', async () => {
+  await vi.reload({ waitUntil: 'networkidle' });
+  const labels = await vi.$$eval('.tab-label', els => els.map(e => e.textContent));
+  if (labels[0] !== 'Units') throw new Error('language not persisted: ' + JSON.stringify(labels));
+});
+
+/* ---------- a phone set to English ---------- */
+const enCtx = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: 'en-GB' });
+const en = await enCtx.newPage();
+en.on('pageerror', e => errors.push('PAGEERROR(en): ' + e.message));
+
+await step('en: defaults to English with ordinary currency settings', async () => {
+  await en.goto(BASE + '/index.html', { waitUntil: 'networkidle' });
+  await en.waitForSelector('text=No units yet');
+  const st = await en.evaluate(() => JSON.parse(localStorage.getItem('rmu.v1')).settings);
+  if (st.lang !== 'en') throw new Error('lang=' + st.lang);
+  if (st.currency !== '$' || st.currencyAfter || st.decimals !== 2)
+    throw new Error('en defaults wrong: ' + JSON.stringify(st));
+});
+
+await step('en: no untranslated key leaks into the UI', async () => {
+  for (const hash of ['#/units', '#/history', '#/settings', '#/unit/new']) {
+    await en.goto(BASE + '/index.html' + hash, { waitUntil: 'networkidle' });
+    await en.waitForTimeout(120);
+    const body = await en.textContent('body');
+    const leak = body.match(/\b(units|unit|bill|invoice|inv|set|csv|tab|history|backup|nf)\.[a-zA-Z]+\b/);
+    if (leak) throw new Error('raw key rendered: ' + leak[0] + ' on ' + hash);
+  }
+});
+
+await browser.close();
+console.log('\n--- errors (' + errors.length + ') ---');
+errors.forEach(e => console.log(e));
+process.exit(errors.length ? 1 : 0);

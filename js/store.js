@@ -1,8 +1,11 @@
 /* Data layer: everything lives in this device's localStorage. No network, no accounts. */
 
+import { locale } from './i18n.js';
+
 const STORAGE_KEY = 'rmu.v1';
 
 const DEFAULT_SETTINGS = {
+  lang: '',
   propertyName: '',
   landlordName: '',
   currency: '$',
@@ -12,6 +15,7 @@ const DEFAULT_SETTINGS = {
   elecUnit: 'kWh',
   waterUnit: 'm³',
   dueDay: 15,
+  decimals: 2,
   invoiceNote: ''
 };
 
@@ -69,13 +73,13 @@ export const monthKey = (date = new Date()) =>
 export function monthLabel(key) {
   if (!key) return '';
   const [y, m] = key.split('-').map(Number);
-  return new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  return new Date(y, m - 1, 1).toLocaleDateString(locale(), { month: 'long', year: 'numeric' });
 }
 
 export function monthShort(key) {
   if (!key) return '';
   const [y, m] = key.split('-').map(Number);
-  return new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+  return new Date(y, m - 1, 1).toLocaleDateString(locale(), { month: 'short', year: 'numeric' });
 }
 
 export const shiftMonth = (key, delta) => {
@@ -191,13 +195,15 @@ export const round2 = n => Math.round((Number(n) || 0) * 100) / 100;
 
 export function money(n) {
   const s = State.data.settings;
-  const v = Math.abs(round2(n)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const d = Number.isInteger(s.decimals) ? s.decimals : 2;
+  const v = Math.abs(round2(n)).toLocaleString(locale(), { minimumFractionDigits: d, maximumFractionDigits: d });
   const sign = n < 0 ? '-' : '';
-  return s.currencyAfter ? `${sign}${v}${s.currency}` : `${sign}${s.currency}${v}`;
+  // A trailing symbol reads better with a space: "1.200.000 ₫".
+  return s.currencyAfter ? `${sign}${v} ${s.currency}` : `${sign}${s.currency}${v}`;
 }
 
 export const num = n =>
-  (Number(n) || 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
+  (Number(n) || 0).toLocaleString(locale(), { maximumFractionDigits: 2 });
 
 export function dueDate(month) {
   const s = State.data.settings;
@@ -206,7 +212,7 @@ export function dueDate(month) {
   return new Date(y, m - 1, day);
 }
 
-export const fmtDate = d => d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+export const fmtDate = d => d.toLocaleDateString(locale(), { day: 'numeric', month: 'short', year: 'numeric' });
 
 export const invoiceNumber = (unit, month) =>
   `${(unit.label || 'UNIT').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6) || 'UNIT'}-${month.replace('-', '')}`;

@@ -5,6 +5,7 @@ import {
   compute, money, num, dueDate, fmtDate
 } from './store.js';
 import { renderInvoice, invoiceFilename, shareInvoice, invoiceText } from './invoice.js';
+import { t, setLang, getLang, detectLang, plural, LANGUAGES } from './i18n.js';
 
 const app = document.getElementById('app');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, ch =>
@@ -48,7 +49,7 @@ function viewUnits() {
   const needsRates = !s.elecRate && !s.waterRate;
   const banners = [];
   if (needsRates && list.length) {
-    banners.push(`<a class="banner info" href="#/settings">${ICON.warn}<span>Set your electricity and water rates in Settings so bills calculate automatically.</span></a>`);
+    banners.push(`<a class="banner info" href="#/settings">${ICON.warn}<span>${esc(t('units.needRates'))}</span></a>`);
   }
   banners.push(backupBanner());
 
@@ -60,26 +61,26 @@ function viewUnits() {
         <div class="row between">
           <div class="grow">
             <div class="unit-label truncate">${esc(u.label)}</div>
-            <div class="muted truncate">${esc(u.tenantName || 'No tenant set')}</div>
+            <div class="muted truncate">${esc(u.tenantName || t('inv.tenant'))}</div>
           </div>
-          <span class="pill ${bill ? 'done' : 'todo'}">${bill ? 'Billed' : 'Not billed'}</span>
+          <span class="pill ${bill ? 'done' : 'todo'}">${esc(bill ? t('units.billed') : t('units.notBilled'))}</span>
         </div>
         <div class="row between" style="margin-top:12px">
-          <span class="tiny">Rent ${esc(money(rent))}</span>
+          <span class="tiny">${esc(t('units.rent', { amount: money(rent) }))}</span>
           <span class="amount">${bill ? esc(money(compute(bill).total)) : '—'}</span>
         </div>
       </a>`;
   }).join('') : `
     <div class="empty">
       ${ICON.empty}
-      <p>No units yet.<br>Add the first one to get started.</p>
-      <a class="btn primary" href="#/unit/new">${ICON.plus} Add a unit</a>
+      <p>${t('units.empty')}</p>
+      <a class="btn primary" href="#/unit/new">${ICON.plus} ${esc(t('units.addFirst'))}</a>
     </div>`;
 
   return {
-    title: s.propertyName || 'My Units',
-    sub: list.length ? `${list.length} unit${list.length > 1 ? 's' : ''} · ${monthLabel(now)}` : '',
-    actions: list.length ? `<a class="icon-btn" href="#/unit/new" aria-label="Add unit">${ICON.plus}</a>` : '',
+    title: s.propertyName || t('units.title'),
+    sub: list.length ? t('units.sub', { n: list.length, s: plural(list.length), month: monthLabel(now) }) : '',
+    actions: list.length ? `<a class="icon-btn" href="#/unit/new" aria-label="${esc(t('units.add'))}">${ICON.plus}</a>` : '',
     body: banners.join('') + body
   };
 }
@@ -89,40 +90,38 @@ function backupBanner() {
   if (!State.data.bills.length) return '';
   const days = last ? (Date.now() - last.getTime()) / 86400000 : Infinity;
   if (days < 45) return '';
-  const msg = last
-    ? `Last backup was ${Math.floor(days)} days ago. Your records live only on this phone.`
-    : 'Your records live only on this phone. Save a backup so you can restore them if you lose it.';
-  return `<a class="banner" href="#/settings">${ICON.warn}<span>${esc(msg)} Tap to back up.</span></a>`;
+  const msg = last ? t('backup.stale', { days: Math.floor(days) }) : t('backup.never');
+  return `<a class="banner" href="#/settings">${ICON.warn}<span>${esc(msg)} ${esc(t('backup.tap'))}</span></a>`;
 }
 
 function viewUnitForm(id) {
   const u = id === 'new' ? null : findUnit(id);
   if (id !== 'new' && !u) return notFound();
   return {
-    title: u ? 'Edit unit' : 'Add unit',
+    title: u ? t('unit.edit') : t('unit.add'),
     back: u ? `#/unit/${u.id}` : '#/units',
     body: `
       <form id="unit-form" class="card">
         <div class="field">
-          <label for="f-label">Unit name</label>
-          <input id="f-label" name="label" required placeholder="e.g. Unit A1" value="${esc(u?.label || '')}">
+          <label for="f-label">${esc(t('unit.name'))}</label>
+          <input id="f-label" name="label" required placeholder="${esc(t('unit.namePh'))}" value="${esc(u?.label || '')}">
         </div>
         <div class="field">
-          <label for="f-tenant">Tenant name</label>
-          <input id="f-tenant" name="tenantName" placeholder="e.g. Sarah Lim" value="${esc(u?.tenantName || '')}">
+          <label for="f-tenant">${esc(t('unit.tenant'))}</label>
+          <input id="f-tenant" name="tenantName" placeholder="${esc(t('unit.tenantPh'))}" value="${esc(u?.tenantName || '')}">
         </div>
         <div class="field">
-          <label for="f-phone">Phone number</label>
-          <input id="f-phone" name="phone" type="tel" inputmode="tel" placeholder="e.g. +60 12-345 6789" value="${esc(u?.phone || '')}">
+          <label for="f-phone">${esc(t('unit.phone'))}</label>
+          <input id="f-phone" name="phone" type="tel" inputmode="tel" placeholder="${esc(t('unit.phonePh'))}" value="${esc(u?.phone || '')}">
         </div>
         ${u ? '' : `
         <div class="field">
-          <label for="f-rent">Monthly rent</label>
+          <label for="f-rent">${esc(t('unit.rent'))}</label>
           <input id="f-rent" name="rent" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00">
         </div>`}
-        <button class="btn primary block" type="submit">${u ? 'Save changes' : 'Add unit'}</button>
+        <button class="btn primary block" type="submit">${esc(u ? t('unit.save') : t('unit.add'))}</button>
       </form>
-      ${u ? `<button class="btn danger block" id="archive-unit" style="margin-top:12px">Delete this unit</button>` : ''}`,
+      ${u ? `<button class="btn danger block" id="archive-unit" style="margin-top:12px">${esc(t('unit.delete'))}</button>` : ''}`,
     mount() {
       document.getElementById('unit-form').addEventListener('submit', e => {
         e.preventDefault();
@@ -131,21 +130,21 @@ function viewUnitForm(id) {
         if (u) {
           Object.assign(u, { label: f.label.trim(), tenantName: f.tenantName.trim(), phone: f.phone.trim() });
           State.save();
-          toast('Unit updated');
+          toast(t('unit.updated'));
           nav(`#/unit/${u.id}`);
         } else {
           const created = addUnit(f);
-          toast('Unit added');
+          toast(t('unit.added'));
           nav(`#/unit/${created.id}`);
         }
       });
       document.getElementById('archive-unit')?.addEventListener('click', () => {
         const n = billsFor(u.id).length;
-        if (!confirm(`Delete ${u.label}? This also deletes its ${n} saved bill${n === 1 ? '' : 's'}. This cannot be undone.`)) return;
+        if (!confirm(t('unit.confirmDelete', { label: u.label, n }))) return;
         State.data.bills = State.data.bills.filter(b => b.unitId !== u.id);
         State.data.units = State.data.units.filter(x => x.id !== u.id);
         State.save();
-        toast('Unit deleted');
+        toast(t('unit.deleted'));
         nav('#/units');
       });
     }
@@ -166,57 +165,57 @@ function viewUnit(id) {
       <a class="hist-row" href="#/invoice/${b.id}" style="text-decoration:none;color:inherit">
         <div class="grow">
           <div style="font-weight:600">${esc(monthShort(b.month))}</div>
-          <div class="tiny">Rent ${esc(money(c.rent))} · Utilities ${esc(money(c.utilities))}</div>
+          <div class="tiny">${esc(t('unit.billSummary', { rent: money(c.rent), utilities: money(c.utilities) }))}</div>
         </div>
         <span class="amount">${esc(money(c.total))}</span>
       </a>`;
-  }).join('') : '<p class="muted" style="margin:4px 0">No bills recorded yet.</p>';
+  }).join('') : `<p class="muted" style="margin:4px 0">${esc(t('unit.noBills'))}</p>`;
 
   const rentRows = (u.rents || []).slice().sort((a, b) => b.from.localeCompare(a.from)).map(r =>
     `<div class="hist-row"><div class="grow"><div style="font-weight:600">${esc(money(r.amount))}</div>
-     <div class="tiny">From ${esc(monthShort(r.from))}</div></div>
-     <button class="btn sm ghost" data-rm-rent="${esc(r.from)}">Remove</button></div>`
-  ).join('') || '<p class="muted" style="margin:4px 0">No rent set yet.</p>';
+     <div class="tiny">${esc(t('unit.rentFrom', { month: monthShort(r.from) }))}</div></div>
+     <button class="btn sm ghost" data-rm-rent="${esc(r.from)}">${esc(t('unit.remove'))}</button></div>`
+  ).join('') || `<p class="muted" style="margin:4px 0">${esc(t('unit.noRent'))}</p>`;
 
   return {
     title: u.label,
     sub: u.tenantName || '',
     back: '#/units',
-    actions: `<a class="icon-btn" href="#/unit/${u.id}/edit" aria-label="Edit unit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></a>`,
+    actions: `<a class="icon-btn" href="#/unit/${u.id}/edit" aria-label="${esc(t('unit.edit'))}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></a>`,
     body: `
       <div class="card">
         <div class="row between">
-          <div><div class="tiny">Current rent</div><div class="amount">${esc(money(rent))}</div></div>
+          <div><div class="tiny">${esc(t('unit.currentRent'))}</div><div class="amount">${esc(money(rent))}</div></div>
           ${u.phone ? `<div class="row" style="gap:8px">
-            <a class="btn sm" href="tel:${esc(u.phone)}">Call</a>
-            <a class="btn sm" href="sms:${esc(u.phone)}">Text</a>
+            <a class="btn sm" href="tel:${esc(u.phone)}">${esc(t('unit.call'))}</a>
+            <a class="btn sm" href="sms:${esc(u.phone)}">${esc(t('unit.text'))}</a>
           </div>` : ''}
         </div>
       </div>
 
       <a class="btn primary block" href="#/bill/${u.id}/${thisMonth ? thisMonth.month : now}">
-        ${thisMonth ? `Edit ${monthShort(now)} bill` : `Create ${monthShort(now)} bill`}
+        ${esc(thisMonth ? t('unit.editBill', { month: monthShort(now) }) : t('unit.createBill', { month: monthShort(now) }))}
       </a>
 
-      <h2>Bill history</h2>
+      <h2>${esc(t('unit.billHistory'))}</h2>
       <div class="card">${history}</div>
 
-      <h2>Rent history</h2>
+      <h2>${esc(t('unit.rentHistory'))}</h2>
       <div class="card">
         ${rentRows}
         <form id="rent-form" class="two" style="margin-top:14px">
-          <div><label for="r-amt">New rent</label><input id="r-amt" name="amount" type="number" inputmode="decimal" step="0.01" min="0" required placeholder="0.00"></div>
-          <div><label for="r-from">Starting</label><input id="r-from" name="from" type="month" required value="${now}"></div>
-          <button class="btn block" type="submit" style="grid-column:1/-1">Set rent</button>
+          <div><label for="r-amt">${esc(t('unit.newRent'))}</label><input id="r-amt" name="amount" type="number" inputmode="decimal" step="any" min="0" required></div>
+          <div><label for="r-from">${esc(t('unit.rentStart'))}</label><input id="r-from" name="from" type="month" required value="${now}"></div>
+          <button class="btn block" type="submit" style="grid-column:1/-1">${esc(t('unit.setRent'))}</button>
         </form>
-        <p class="tiny" style="margin:10px 0 0">Past bills keep the rent they were created with, so changing this never alters old invoices.</p>
+        <p class="tiny" style="margin:10px 0 0">${esc(t('unit.rentNote'))}</p>
       </div>`,
     mount() {
       document.getElementById('rent-form').addEventListener('submit', e => {
         e.preventDefault();
         const f = Object.fromEntries(new FormData(e.target));
         setRent(u, f.from, f.amount);
-        toast('Rent updated');
+        toast(t('unit.rentUpdated'));
         render();
       });
       app.querySelectorAll('[data-rm-rent]').forEach(btn =>
@@ -248,11 +247,11 @@ function viewBill(unitId, month) {
   };
 
   const carried = !existing && open.fromMonth
-    ? `<div class="banner info">${ICON.warn}<span>Opening readings carried over from ${esc(monthShort(open.fromMonth))}.</span></div>`
+    ? `<div class="banner info">${ICON.warn}<span>${esc(t('bill.carried', { month: monthShort(open.fromMonth) }))}</span></div>`
     : '';
 
   return {
-    title: existing ? 'Edit bill' : 'New bill',
+    title: existing ? t('bill.edit') : t('bill.new'),
     sub: `${u.label} · ${monthLabel(month)}`,
     back: `#/unit/${unitId}`,
     body: `
@@ -260,47 +259,47 @@ function viewBill(unitId, month) {
       <form id="bill-form">
         <div class="card">
           <div class="field">
-            <label for="b-month">Billing month</label>
+            <label for="b-month">${esc(t('bill.month'))}</label>
             <input id="b-month" name="month" type="month" required value="${esc(b.month)}">
           </div>
 
-          <h2 style="margin-top:6px">Electricity (${esc(s.elecUnit)})</h2>
+          <h2 style="margin-top:6px">${esc(t('bill.electricity', { unit: s.elecUnit }))}</h2>
           <div class="two">
-            <div class="field"><label for="b-ep">Previous reading</label>
+            <div class="field"><label for="b-ep">${esc(t('bill.prev'))}</label>
               <input id="b-ep" name="elecPrev" type="number" inputmode="decimal" step="any" min="0" required value="${esc(money0(b.elecPrev))}"></div>
-            <div class="field"><label for="b-ec">Current reading</label>
+            <div class="field"><label for="b-ec">${esc(t('bill.curr'))}</label>
               <input id="b-ec" name="elecCurr" type="number" inputmode="decimal" step="any" min="0" required value="${esc(money0(b.elecCurr))}"></div>
           </div>
-          <div class="field"><label for="b-er">Rate per ${esc(s.elecUnit)}</label>
+          <div class="field"><label for="b-er">${esc(t('bill.rate', { unit: s.elecUnit }))}</label>
             <input id="b-er" name="elecRate" type="number" inputmode="decimal" step="any" min="0" required value="${esc(money0(b.elecRate))}"></div>
 
-          <h2>Water (${esc(s.waterUnit)})</h2>
+          <h2>${esc(t('bill.water', { unit: s.waterUnit }))}</h2>
           <div class="two">
-            <div class="field"><label for="b-wp">Previous reading</label>
+            <div class="field"><label for="b-wp">${esc(t('bill.prev'))}</label>
               <input id="b-wp" name="waterPrev" type="number" inputmode="decimal" step="any" min="0" required value="${esc(money0(b.waterPrev))}"></div>
-            <div class="field"><label for="b-wc">Current reading</label>
+            <div class="field"><label for="b-wc">${esc(t('bill.curr'))}</label>
               <input id="b-wc" name="waterCurr" type="number" inputmode="decimal" step="any" min="0" required value="${esc(money0(b.waterCurr))}"></div>
           </div>
-          <div class="field"><label for="b-wr">Rate per ${esc(s.waterUnit)}</label>
+          <div class="field"><label for="b-wr">${esc(t('bill.rate', { unit: s.waterUnit }))}</label>
             <input id="b-wr" name="waterRate" type="number" inputmode="decimal" step="any" min="0" required value="${esc(money0(b.waterRate))}"></div>
 
-          <h2>Rent &amp; adjustments</h2>
-          <div class="field"><label for="b-rent">Rent for this month</label>
+          <h2>${esc(t('bill.rentSection'))}</h2>
+          <div class="field"><label for="b-rent">${esc(t('bill.rent'))}</label>
             <input id="b-rent" name="rent" type="number" inputmode="decimal" step="0.01" min="0" required value="${esc(money0(b.rent))}"></div>
           <div class="two">
-            <div class="field"><label for="b-adj">Adjustment</label>
+            <div class="field"><label for="b-adj">${esc(t('bill.adjustment'))}</label>
               <input id="b-adj" name="adjustment" type="number" inputmode="decimal" step="0.01" placeholder="0.00" value="${b.adjustment ? esc(b.adjustment) : ''}"></div>
-            <div class="field"><label for="b-adjn">Reason</label>
-              <input id="b-adjn" name="adjustmentNote" placeholder="e.g. Repair" value="${esc(b.adjustmentNote || '')}"></div>
+            <div class="field"><label for="b-adjn">${esc(t('bill.reason'))}</label>
+              <input id="b-adjn" name="adjustmentNote" placeholder="${esc(t('bill.reasonPh'))}" value="${esc(b.adjustmentNote || '')}"></div>
           </div>
-          <p class="tiny" style="margin:-4px 0 0">Use a negative adjustment for a discount or credit.</p>
+          <p class="tiny" style="margin:-4px 0 0">${esc(t('bill.adjustNote'))}</p>
         </div>
 
         <div class="card readout" id="readout"></div>
         <div id="bill-err"></div>
-        <button class="btn primary block" type="submit">${existing ? 'Save bill' : 'Save &amp; preview invoice'}</button>
+        <button class="btn primary block" type="submit">${esc(existing ? t('bill.save') : t('bill.saveNew'))}</button>
       </form>
-      ${existing ? `<button class="btn danger block" id="del-bill" style="margin-top:12px">Delete this bill</button>` : ''}`,
+      ${existing ? `<button class="btn danger block" id="del-bill" style="margin-top:12px">${esc(t('bill.delete'))}</button>` : ''}`,
     mount() {
       const form = document.getElementById('bill-form');
       const readout = document.getElementById('readout');
@@ -314,9 +313,9 @@ function viewBill(unitId, month) {
       const problems = draft => {
         const out = [];
         if (Number(draft.elecCurr) < Number(draft.elecPrev))
-          out.push(`Electricity current reading (${num(draft.elecCurr)}) is lower than the previous one (${num(draft.elecPrev)}). Check for a typo, or correct the previous reading.`);
+          out.push(t('bill.backwardsElec', { curr: num(draft.elecCurr), prev: num(draft.elecPrev) }));
         if (Number(draft.waterCurr) < Number(draft.waterPrev))
-          out.push(`Water current reading (${num(draft.waterCurr)}) is lower than the previous one (${num(draft.waterPrev)}). Check for a typo, or correct the previous reading.`);
+          out.push(t('bill.backwardsWater', { curr: num(draft.waterCurr), prev: num(draft.waterPrev) }));
         return out;
       };
 
@@ -324,11 +323,11 @@ function viewBill(unitId, month) {
         const draft = read();
         const c = compute(draft);
         readout.innerHTML = `
-          <div class="line"><span class="lbl">Electricity · ${esc(num(c.elecUsed))} ${esc(s.elecUnit)}</span><span>${esc(money(c.elecAmount))}</span></div>
-          <div class="line"><span class="lbl">Water · ${esc(num(c.waterUsed))} ${esc(s.waterUnit)}</span><span>${esc(money(c.waterAmount))}</span></div>
-          <div class="line"><span class="lbl">Rent</span><span>${esc(money(c.rent))}</span></div>
-          ${c.adjustment ? `<div class="line"><span class="lbl">${esc(draft.adjustmentNote || 'Adjustment')}</span><span>${esc(money(c.adjustment))}</span></div>` : ''}
-          <div class="line total"><span>Total</span><span>${esc(money(c.total))}</span></div>`;
+          <div class="line"><span class="lbl">${esc(t('inv.electricity'))} · ${esc(num(c.elecUsed))} ${esc(s.elecUnit)}</span><span>${esc(money(c.elecAmount))}</span></div>
+          <div class="line"><span class="lbl">${esc(t('inv.water'))} · ${esc(num(c.waterUsed))} ${esc(s.waterUnit)}</span><span>${esc(money(c.waterAmount))}</span></div>
+          <div class="line"><span class="lbl">${esc(t('inv.rent'))}</span><span>${esc(money(c.rent))}</span></div>
+          ${c.adjustment ? `<div class="line"><span class="lbl">${esc(draft.adjustmentNote || t('inv.adjustment'))}</span><span>${esc(money(c.adjustment))}</span></div>` : ''}
+          <div class="line total"><span>${esc(t('bill.total'))}</span><span>${esc(money(c.total))}</span></div>`;
         const errs = problems(draft);
         errBox.innerHTML = errs.map(e => `<div class="banner">${ICON.warn}<span>${esc(e)}</span></div>`).join('');
       };
@@ -340,13 +339,13 @@ function viewBill(unitId, month) {
         e.preventDefault();
         const draft = read();
         if (problems(draft).length) {
-          toast('Fix the reading before saving');
+          toast(t('bill.fixFirst'));
           errBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
           return;
         }
         const clash = State.data.bills.find(x =>
           x.unitId === unitId && x.month === draft.month && x.id !== (existing?.id));
-        if (clash && !confirm(`A bill for ${monthLabel(draft.month)} already exists. Replace it?`)) return;
+        if (clash && !confirm(t('bill.confirmReplace', { month: monthLabel(draft.month) }))) return;
         if (clash) deleteBill(clash.id);
 
         const payload = {
@@ -365,14 +364,14 @@ function viewBill(unitId, month) {
           adjustmentNote: (draft.adjustmentNote || '').trim()
         };
         const id = saveBill(payload);
-        toast('Bill saved');
+        toast(t('bill.saved'));
         nav(`#/invoice/${id}`);
       });
 
       document.getElementById('del-bill')?.addEventListener('click', () => {
-        if (!confirm('Delete this bill? This cannot be undone.')) return;
+        if (!confirm(t('bill.confirmDelete'))) return;
         deleteBill(existing.id);
-        toast('Bill deleted');
+        toast(t('bill.deleted'));
         nav(`#/unit/${unitId}`);
       });
     }
@@ -386,17 +385,17 @@ function viewInvoice(billId) {
   if (!u) return notFound();
 
   return {
-    title: 'Invoice',
+    title: t('invoice.title'),
     sub: `${u.label} · ${monthShort(bill.month)}`,
     back: `#/unit/${bill.unitId}`,
     body: `
-      <img class="preview" id="inv-preview" alt="Invoice for ${esc(u.label)}, ${esc(monthLabel(bill.month))}">
+      <img class="preview" id="inv-preview" alt="${esc(t('invoice.title'))} — ${esc(u.label)}, ${esc(monthLabel(bill.month))}">
       <div class="stack" style="margin-top:16px">
-        <button class="btn primary block" id="share-img">${ICON.share} Send invoice image</button>
-        <button class="btn block" id="copy-text">${ICON.copy} Copy as text</button>
-        <a class="btn ghost block" href="#/bill/${bill.unitId}/${bill.month}">Edit this bill</a>
+        <button class="btn primary block" id="share-img">${ICON.share} ${esc(t('invoice.send'))}</button>
+        <button class="btn block" id="copy-text">${ICON.copy} ${esc(t('invoice.copy'))}</button>
+        <a class="btn ghost block" href="#/bill/${bill.unitId}/${bill.month}">${esc(t('invoice.editBill'))}</a>
       </div>
-      <p class="tiny" style="text-align:center;margin-top:14px">Due ${esc(fmtDate(dueDate(bill.month)))}</p>`,
+      <p class="tiny" style="text-align:center;margin-top:14px">${esc(t('invoice.due', { date: fmtDate(dueDate(bill.month)) }))}</p>`,
     mount() {
       let canvas;
       try {
@@ -404,7 +403,7 @@ function viewInvoice(billId) {
         document.getElementById('inv-preview').src = canvas.toDataURL('image/png');
       } catch (err) {
         console.error(err);
-        toast('Could not draw the invoice');
+        toast(t('invoice.drawFailed'));
         return;
       }
 
@@ -413,11 +412,11 @@ function viewInvoice(billId) {
         btn.disabled = true;
         try {
           const result = await shareInvoice(canvas, invoiceFilename(bill, u));
-          if (result === 'downloaded') toast('Image saved to your downloads');
-          if (result === 'shared') toast('Shared');
+          if (result === 'downloaded') toast(t('invoice.saved'));
+          if (result === 'shared') toast(t('invoice.shared'));
         } catch (err) {
           console.error(err);
-          toast('Could not share the image');
+          toast(t('invoice.shareFailed'));
         } finally {
           btn.disabled = false;
         }
@@ -427,9 +426,9 @@ function viewInvoice(billId) {
         const text = invoiceText(bill, u);
         try {
           await navigator.clipboard.writeText(text);
-          toast('Copied');
+          toast(t('invoice.copied'));
         } catch {
-          prompt('Copy the invoice text:', text);
+          prompt(t('invoice.copyPrompt'), text);
         }
       });
     }
@@ -439,7 +438,7 @@ function viewInvoice(billId) {
 function viewHistory() {
   const bills = State.data.bills.slice().sort((a, b) => b.month.localeCompare(a.month));
   if (!bills.length) {
-    return { title: 'History', body: `<div class="empty">${ICON.history}<p>No bills yet.<br>Create one from a unit.</p></div>` };
+    return { title: t('history.title'), body: `<div class="empty">${ICON.history}<p>${t('history.empty')}</p></div>` };
   }
 
   const groups = {};
@@ -456,23 +455,23 @@ function viewHistory() {
           const c = compute(b);
           return `<a class="hist-row" href="#/invoice/${b.id}" style="text-decoration:none;color:inherit">
             <div class="grow">
-              <div style="font-weight:600">${esc(u ? u.label : 'Deleted unit')}</div>
-              <div class="tiny">Rent ${esc(money(c.rent))} · Elec ${esc(money(c.elecAmount))} · Water ${esc(money(c.waterAmount))}</div>
+              <div style="font-weight:600">${esc(u ? u.label : t('history.deletedUnit'))}</div>
+              <div class="tiny">${esc(t('history.rowSummary', { rent: money(c.rent), elec: money(c.elecAmount), water: money(c.waterAmount) }))}</div>
             </div>
             <span class="amount">${esc(money(c.total))}</span>
           </a>`;
         }).join('')}
         <div class="hist-row" style="border-top:2px solid var(--line);border-bottom:0">
-          <span class="grow" style="font-weight:700">Month total</span>
+          <span class="grow" style="font-weight:700">${esc(t('history.monthTotal'))}</span>
           <span class="amount">${esc(money(total))}</span>
         </div>
       </div>`;
   }).join('');
 
   return {
-    title: 'History',
-    sub: `${bills.length} bill${bills.length > 1 ? 's' : ''}`,
-    body: body + `<button class="btn block" id="csv" style="margin-top:18px">Export all as CSV</button>`,
+    title: t('history.title'),
+    sub: t('history.sub', { n: bills.length, s: plural(bills.length) }),
+    body: body + `<button class="btn block" id="csv" style="margin-top:18px">${esc(t('history.exportCsv'))}</button>`,
     mount() {
       document.getElementById('csv').addEventListener('click', exportCsv);
     }
@@ -484,72 +483,84 @@ function viewSettings() {
   const last = State.data.lastBackupAt ? new Date(State.data.lastBackupAt) : null;
 
   return {
-    title: 'Settings',
+    title: t('set.title'),
     body: `
       <form id="set-form" class="card">
-        <h2 style="margin-top:0">Property</h2>
-        <div class="field"><label for="s-prop">Property name</label>
-          <input id="s-prop" name="propertyName" placeholder="Shown on invoices" value="${esc(s.propertyName)}"></div>
-        <div class="field"><label for="s-land">Your name</label>
-          <input id="s-land" name="landlordName" placeholder="Shown at the foot of invoices" value="${esc(s.landlordName)}"></div>
+        <h2 style="margin-top:0">${esc(t('set.language'))}</h2>
+        <div class="field">
+          <select id="s-lang" name="lang">
+            ${LANGUAGES.map(l => `<option value="${l.code}" ${l.code === getLang() ? 'selected' : ''}>${esc(l.name)}</option>`).join('')}
+          </select>
+        </div>
 
-        <h2>Rates</h2>
+        <h2>${esc(t('set.property'))}</h2>
+        <div class="field"><label for="s-prop">${esc(t('set.propertyName'))}</label>
+          <input id="s-prop" name="propertyName" placeholder="${esc(t('set.propertyNamePh'))}" value="${esc(s.propertyName)}"></div>
+        <div class="field"><label for="s-land">${esc(t('set.yourName'))}</label>
+          <input id="s-land" name="landlordName" placeholder="${esc(t('set.yourNamePh'))}" value="${esc(s.landlordName)}"></div>
+
+        <h2>${esc(t('set.rates'))}</h2>
         <div class="two">
-          <div class="field"><label for="s-er">Electricity rate</label>
+          <div class="field"><label for="s-er">${esc(t('set.elecRate'))}</label>
             <input id="s-er" name="elecRate" type="number" inputmode="decimal" step="any" min="0" value="${esc(money0(s.elecRate))}"></div>
-          <div class="field"><label for="s-eu">Per unit</label>
+          <div class="field"><label for="s-eu">${esc(t('set.perUnit'))}</label>
             <input id="s-eu" name="elecUnit" value="${esc(s.elecUnit)}"></div>
         </div>
         <div class="two">
-          <div class="field"><label for="s-wr">Water rate</label>
+          <div class="field"><label for="s-wr">${esc(t('set.waterRate'))}</label>
             <input id="s-wr" name="waterRate" type="number" inputmode="decimal" step="any" min="0" value="${esc(money0(s.waterRate))}"></div>
-          <div class="field"><label for="s-wu">Per unit</label>
+          <div class="field"><label for="s-wu">${esc(t('set.perUnit'))}</label>
             <input id="s-wu" name="waterUnit" value="${esc(s.waterUnit)}"></div>
         </div>
-        <p class="tiny" style="margin:-4px 0 0">These prefill new bills. Each saved bill keeps the rate it was created with.</p>
+        <p class="tiny" style="margin:-4px 0 0">${esc(t('set.ratesNote'))}</p>
 
-        <h2>Invoice</h2>
+        <h2>${esc(t('set.invoice'))}</h2>
         <div class="two">
-          <div class="field"><label for="s-cur">Currency symbol</label>
+          <div class="field"><label for="s-cur">${esc(t('set.currency'))}</label>
             <input id="s-cur" name="currency" value="${esc(s.currency)}"></div>
-          <div class="field"><label for="s-due">Due day of month</label>
-            <input id="s-due" name="dueDay" type="number" inputmode="numeric" min="1" max="28" value="${esc(s.dueDay)}"></div>
+          <div class="field"><label for="s-dec">${esc(t('set.decimals'))}</label>
+            <select id="s-dec" name="decimals">
+              <option value="0" ${s.decimals === 0 ? 'selected' : ''}>0</option>
+              <option value="2" ${s.decimals !== 0 ? 'selected' : ''}>2</option>
+            </select></div>
         </div>
+        <div class="field"><label for="s-due">${esc(t('set.dueDay'))}</label>
+          <input id="s-due" name="dueDay" type="number" inputmode="numeric" min="1" max="28" value="${esc(s.dueDay)}"></div>
         <div class="field switch">
           <input id="s-after" name="currencyAfter" type="checkbox" ${s.currencyAfter ? 'checked' : ''}>
-          <label for="s-after" style="margin:0">Show symbol after the amount</label>
+          <label for="s-after" style="margin:0">${esc(t('set.symbolAfter'))}</label>
         </div>
-        <div class="field"><label for="s-note">Footer note</label>
-          <textarea id="s-note" name="invoiceNote" placeholder="e.g. Bank transfer to 1234-5678. Thank you!">${esc(s.invoiceNote)}</textarea></div>
+        <div class="field"><label for="s-note">${esc(t('set.note'))}</label>
+          <textarea id="s-note" name="invoiceNote" placeholder="${esc(t('set.notePh'))}">${esc(s.invoiceNote)}</textarea></div>
 
-        <button class="btn primary block" type="submit">Save settings</button>
+        <button class="btn primary block" type="submit">${esc(t('set.save'))}</button>
       </form>
 
-      <h2>Your data</h2>
+      <h2>${esc(t('set.data'))}</h2>
       ${backupBanner()}
       <div class="card stack">
         <p class="tiny" style="margin:0">
-          Everything is stored on this phone only — nothing is sent anywhere, and there is no account.
-          That also means a lost or wiped phone loses the records, so save a backup file somewhere safe
-          (email it to yourself, or put it in your cloud drive).
-          ${last ? `<br><br>Last backup: <strong>${esc(fmtDate(last))}</strong>.` : ''}
+          ${esc(t('set.dataNote'))}
+          ${last ? `<br><br>${esc(t('set.lastBackup', { date: fmtDate(last) }))}` : ''}
         </p>
-        <button class="btn primary block" id="backup">Save backup file</button>
-        <button class="btn block" id="restore">Restore from backup</button>
-        <button class="btn block" id="csv2">Export history as CSV</button>
+        <button class="btn primary block" id="backup">${esc(t('set.backup'))}</button>
+        <button class="btn block" id="restore">${esc(t('set.restore'))}</button>
+        <button class="btn block" id="csv2">${esc(t('set.exportCsv'))}</button>
         <input type="file" id="restore-file" accept="application/json,.json" hidden>
       </div>
 
-      <h2>Danger zone</h2>
+      <h2>${esc(t('set.danger'))}</h2>
       <div class="card">
-        <button class="btn danger block" id="wipe">Erase everything</button>
+        <button class="btn danger block" id="wipe">${esc(t('set.wipe'))}</button>
       </div>
-      <p class="tiny" style="text-align:center;margin:18px 0 0">Rental Utility Calculator · works offline</p>`,
+      <p class="tiny" style="text-align:center;margin:18px 0 0">${esc(t('set.footer'))}</p>`,
     mount() {
       document.getElementById('set-form').addEventListener('submit', e => {
         e.preventDefault();
         const f = new FormData(e.target);
         Object.assign(State.data.settings, {
+          lang: f.get('lang'),
+          decimals: Number(f.get('decimals')) === 0 ? 0 : 2,
           propertyName: f.get('propertyName').trim(),
           landlordName: f.get('landlordName').trim(),
           elecRate: Number(f.get('elecRate')) || 0,
@@ -562,7 +573,9 @@ function viewSettings() {
           invoiceNote: f.get('invoiceNote').trim()
         });
         State.save();
-        toast('Settings saved');
+        applyLang(State.data.settings.lang);
+        toast(t('set.saved'));
+        render();
       });
 
       document.getElementById('backup').addEventListener('click', backup);
@@ -577,24 +590,26 @@ function viewSettings() {
           const parsed = JSON.parse(await file.text());
           if (!parsed || !Array.isArray(parsed.units)) throw new Error('Not a backup file');
           const n = (parsed.bills || []).length;
-          if (!confirm(`Restore ${parsed.units.length} unit(s) and ${n} bill(s)? This replaces everything currently on this phone.`)) return;
+          if (!confirm(t('set.confirmRestore', { units: parsed.units.length, bills: n }))) return;
           State.replaceAll(parsed);
-          toast('Backup restored');
+          applyLang(State.data.settings.lang);
+          toast(t('set.restored'));
           nav('#/units');
         } catch (err) {
           console.error(err);
-          alert('That file could not be read as a backup.');
+          alert(t('set.badFile'));
         } finally {
           picker.value = '';
         }
       });
 
       document.getElementById('wipe').addEventListener('click', () => {
-        if (!confirm('Erase all units, bills and settings on this phone? This cannot be undone.')) return;
-        if (!confirm('Really erase everything? Make sure you have a backup first.')) return;
+        if (!confirm(t('set.confirmWipe'))) return;
+        if (!confirm(t('set.confirmWipe2'))) return;
         localStorage.removeItem('rmu.v1');
         State.load();
-        toast('Everything erased');
+        applyLang(State.data.settings.lang);
+        toast(t('set.wiped'));
         nav('#/units');
       });
     }
@@ -602,9 +617,9 @@ function viewSettings() {
 }
 
 const notFound = () => ({
-  title: 'Not found',
+  title: t('nf.title'),
   back: '#/units',
-  body: `<div class="empty"><p>That item no longer exists.</p><a class="btn" href="#/units">Back to units</a></div>`
+  body: `<div class="empty"><p>${esc(t('nf.body'))}</p><a class="btn" href="#/units">${esc(t('nf.back'))}</a></div>`
 });
 
 /* ================= data export ================= */
@@ -626,7 +641,7 @@ function backup() {
   download(`rental-backup-${stamp}.json`, JSON.stringify(State.data, null, 2), 'application/json');
   State.data.lastBackupAt = new Date().toISOString();
   State.save();
-  toast('Backup saved — keep it somewhere safe');
+  toast(t('set.backupSaved'));
 }
 
 function exportCsv() {
@@ -635,9 +650,12 @@ function exportCsv() {
     const str = String(v ?? '');
     return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
   };
-  const head = ['Month', 'Unit', 'Tenant', 'Rent', 'Elec prev', 'Elec curr', `Elec used (${s.elecUnit})`,
-    'Elec rate', 'Elec amount', 'Water prev', 'Water curr', `Water used (${s.waterUnit})`,
-    'Water rate', 'Water amount', 'Adjustment', 'Adjustment note', 'Total'];
+  const head = [t('csv.month'), t('csv.unit'), t('csv.tenant'), t('csv.rent'),
+    t('csv.elecPrev'), t('csv.elecCurr'), t('csv.elecUsed', { unit: s.elecUnit }),
+    t('csv.elecRate'), t('csv.elecAmount'),
+    t('csv.waterPrev'), t('csv.waterCurr'), t('csv.waterUsed', { unit: s.waterUnit }),
+    t('csv.waterRate'), t('csv.waterAmount'),
+    t('csv.adjustment'), t('csv.adjustmentNote'), t('csv.total')];
   const rows = State.data.bills
     .slice()
     .sort((a, b) => a.month.localeCompare(b.month))
@@ -651,7 +669,7 @@ function exportCsv() {
     });
   download(`rental-history-${new Date().toISOString().slice(0, 10)}.csv`,
     [head.map(cell).join(','), ...rows].join('\n'), 'text/csv');
-  toast('CSV exported');
+  toast(t('set.csvExported'));
 }
 
 /* ================= router ================= */
@@ -691,15 +709,35 @@ function render() {
   app.innerHTML = view.body;
   view.mount?.();
 
-  document.querySelectorAll('.tabbar a').forEach(a =>
-    a.classList.toggle('on', a.dataset.tab === tab));
+  document.querySelectorAll('.tabbar a').forEach(a => {
+    a.classList.toggle('on', a.dataset.tab === tab);
+    a.querySelector('.tab-label').textContent = t(`tab.${a.dataset.tab}`);
+  });
 
   window.scrollTo(0, 0);
 }
 
 window.addEventListener('hashchange', render);
 
+function applyLang(code) {
+  setLang(code);
+  document.documentElement.lang = getLang();
+}
+
 State.load();
+
+/* First run: follow the phone's language, and start from conventions that
+   suit it. Everything here stays editable in Settings. */
+if (!State.data.settings.lang) {
+  const detected = detectLang();
+  State.data.settings.lang = detected;
+  if (detected === 'vi' && !State.data.units.length) {
+    Object.assign(State.data.settings, { currency: '₫', currencyAfter: true, decimals: 0 });
+  }
+  State.save();
+}
+applyLang(State.data.settings.lang);
+
 if (!location.hash) location.hash = '#/units';
 render();
 

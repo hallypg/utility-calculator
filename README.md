@@ -22,6 +22,9 @@ storage on the phone it is used on, and nothing is ever sent anywhere.
   There is also a plain-text version to copy and paste.
 - **History** — every bill by month, with month totals, plus CSV export.
 - **Works offline** — once installed, it opens and works with no connection.
+- **English and Vietnamese** — the app picks the phone's language on first run
+  and can be switched any time in Settings. The invoice image is translated too,
+  so tenants read it in their own language.
 
 ## Setting it up for someone
 
@@ -69,9 +72,12 @@ home-screen app's data. Keep backups (see below).
 
 ### 3. First run
 
-Open **Settings** and fill in the property name, the electricity and water rates,
-the currency symbol, the due day, and a footer note for the invoice (bank details
-and so on). Then add units from the **Units** tab.
+Open **Settings** and fill in the language, property name, the electricity and
+water rates, the currency symbol, the due day, and a footer note for the invoice
+(bank details and so on). Then add units from the **Units** tab.
+
+On a phone set to Vietnamese the app starts in Vietnamese with VND conventions —
+the `₫` symbol after the amount and no decimal places. All of that is editable.
 
 ## Monthly routine
 
@@ -114,6 +120,7 @@ always a typo.
 index.html              app shell and tab bar
 styles.css              all styling, light and dark
 js/store.js             data model, storage, calculations
+js/i18n.js              translations and locale formatting
 js/invoice.js           invoice drawing and sharing
 js/app.js               screens and routing
 sw.js                   offline caching
@@ -125,6 +132,16 @@ No build step, no dependencies, no framework. Edit a file and reload.
 
 After changing any file in the app shell, bump `CACHE` in `sw.js` so installed
 copies pick up the new version.
+
+## Adding another language
+
+Everything users see comes from `js/i18n.js`. Add a block to `STRINGS` keyed by
+language code, copying the `en` block and translating the values, then add an
+entry to `LANGUAGES` and a locale to `LOCALES`. The locale drives date, month
+and number formatting, so separators and month names follow automatically.
+
+Nothing else needs touching — the Settings picker is built from `LANGUAGES`, and
+`tests/i18n.test.mjs` checks that no untranslated key leaks into the UI.
 
 ## Adding cloud sync later
 
