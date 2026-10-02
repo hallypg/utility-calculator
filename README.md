@@ -12,8 +12,9 @@ storage on the phone it is used on, and nothing is ever sent anywhere.
 
 - **Units** — a list of the units being managed, each with tenant name and phone
   (tap to call or text).
-- **Rent with history** — rent is stored as a series of changes with start
-  months, so raising the rent never rewrites invoices already issued.
+- **Rent per unit** — one monthly amount on the unit, edited whenever it
+  changes. Each saved bill keeps a snapshot of the rent it was created with, so
+  raising the rent never rewrites invoices already issued.
 - **Monthly bills** — enter this month's electricity and water readings; the
   opening readings carry over automatically from the previous month. Usage and
   charges update as you type.
@@ -110,7 +111,8 @@ An adjustment is an optional extra line — a repair charge, or a negative amoun
 for a discount or credit.
 
 Each saved bill stores a snapshot of the rates and rent used at the time, so
-changing a rate in Settings affects only future bills and never alters history.
+changing a rate in Settings, or a unit's rent, affects only future bills and
+never alters history.
 A current reading lower than the previous one is blocked, since it is almost
 always a typo.
 

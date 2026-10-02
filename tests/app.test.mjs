@@ -131,22 +131,26 @@ await step('second month carries the opening readings', async () => {
   await page.waitForSelector('text=carried over from');
 });
 
-await step('rent change does not rewrite past bills', async () => {
+await step('editing rent leaves saved bills alone but applies to new ones', async () => {
   const unitId = await page.evaluate(async () => (await import('./js/store.js')).State.data.bills[0].unitId);
-  await page.goto(BASE + '/index.html#/unit/' + unitId);
-  await page.fill('#r-amt', '1300');
-  await page.selectOption('#r-from-m', '11');
-  await page.selectOption('#r-from-y', '2026');
-  await page.click('#rent-form button[type="submit"]');
-  await page.waitForTimeout(200);
+  await page.goto(BASE + '/index.html#/unit/' + unitId + '/edit');
+  await page.fill('#f-rent', '1300');
+  await page.click('#unit-form button[type="submit"]');
+  await page.waitForTimeout(250);
+
   const res = await page.evaluate(async () => {
     const s = await import('./js/store.js');
     const old = s.State.data.bills[0];
-    return { oldRent: s.compute(old).rent, nov: s.rentFor(s.findUnit(old.unitId), '2026-11'), oct: s.rentFor(s.findUnit(old.unitId), '2026-10') };
+    return { oldRent: s.compute(old).rent, unitRent: s.rentOf(s.findUnit(old.unitId)) };
   });
-  if (res.oldRent !== 1200) throw new Error('past bill rent changed to ' + res.oldRent);
-  if (res.nov !== 1300) throw new Error('new rent not applied: ' + res.nov);
-  if (res.oct !== 1200) throw new Error('rent leaked backwards: ' + res.oct);
+  if (res.oldRent !== 1200) throw new Error('saved bill rent changed to ' + res.oldRent);
+  if (res.unitRent !== 1300) throw new Error('unit rent not updated: ' + res.unitRent);
+
+  // A fresh bill should pick up the new amount.
+  await page.goto(BASE + '/index.html#/bill/' + unitId + '/2027-01');
+  await page.waitForSelector('#b-rent');
+  const prefilled = await page.inputValue('#b-rent');
+  if (prefilled !== '1300') throw new Error('new bill prefilled ' + prefilled);
 });
 
 await step('history and CSV', async () => {

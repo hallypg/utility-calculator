@@ -1,6 +1,6 @@
 import {
   State, uid, monthKey, monthLabel, monthShort, shiftMonth,
-  units, activeUnits, findUnit, addUnit, rentFor, setRent,
+  units, activeUnits, findUnit, addUnit, rentOf,
   billsFor, findBill, billForMonth, openingReadings, saveBill, deleteBill,
   compute, money, num, dueDate, fmtDate, monthNames
 } from './store.js';
@@ -96,7 +96,7 @@ function viewUnits() {
 
   const body = list.length ? list.map(u => {
     const bill = billForMonth(u.id, now);
-    const rent = rentFor(u, now);
+    const rent = rentOf(u);
     return `
       <a class="card tap" href="#/unit/${u.id}">
         <div class="row between">
@@ -155,11 +155,11 @@ function viewUnitForm(id) {
           <label for="f-phone">${esc(t('unit.phone'))}</label>
           <input id="f-phone" name="phone" type="tel" inputmode="tel" placeholder="${esc(t('unit.phonePh'))}" value="${esc(u?.phone || '')}">
         </div>
-        ${u ? '' : `
         <div class="field">
           <label for="f-rent">${esc(t('unit.rent'))}</label>
-          <input id="f-rent" name="rent" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00">
-        </div>`}
+          <input id="f-rent" name="rent" type="number" inputmode="decimal" step="any" min="0" value="${esc(u ? (u.rent || '') : '')}">
+        </div>
+        <p class="tiny" style="margin:-4px 0 14px">${esc(t('unit.rentNote'))}</p>
         <button class="btn primary block" type="submit">${esc(u ? t('unit.save') : t('unit.add'))}</button>
       </form>
       ${u ? `<button class="btn danger block" id="archive-unit" style="margin-top:12px">${esc(t('unit.delete'))}</button>` : ''}`,
@@ -169,7 +169,12 @@ function viewUnitForm(id) {
         const f = Object.fromEntries(new FormData(e.target));
         if (!f.label.trim()) return;
         if (u) {
-          Object.assign(u, { label: f.label.trim(), tenantName: f.tenantName.trim(), phone: f.phone.trim() });
+          Object.assign(u, {
+            label: f.label.trim(),
+            tenantName: f.tenantName.trim(),
+            phone: f.phone.trim(),
+            rent: Number(f.rent) || 0
+          });
           State.save();
           toast(t('unit.updated'));
           nav(`#/unit/${u.id}`);
@@ -197,7 +202,7 @@ function viewUnit(id) {
   if (!u) return notFound();
   const now = monthKey();
   const bills = billsFor(u.id);
-  const rent = rentFor(u, now);
+  const rent = rentOf(u);
   const thisMonth = billForMonth(u.id, now);
 
   const history = bills.length ? bills.map(b => {
@@ -211,12 +216,6 @@ function viewUnit(id) {
         <span class="amount">${esc(money(c.total))}</span>
       </a>`;
   }).join('') : `<p class="muted" style="margin:4px 0">${esc(t('unit.noBills'))}</p>`;
-
-  const rentRows = (u.rents || []).slice().sort((a, b) => b.from.localeCompare(a.from)).map(r =>
-    `<div class="hist-row"><div class="grow"><div style="font-weight:600">${esc(money(r.amount))}</div>
-     <div class="tiny">${esc(t('unit.rentFrom', { month: monthShort(r.from) }))}</div></div>
-     <button class="btn sm ghost" data-rm-rent="${esc(r.from)}">${esc(t('unit.remove'))}</button></div>`
-  ).join('') || `<p class="muted" style="margin:4px 0">${esc(t('unit.noRent'))}</p>`;
 
   return {
     title: u.label,
@@ -239,35 +238,7 @@ function viewUnit(id) {
       </a>
 
       <h2>${esc(t('unit.billHistory'))}</h2>
-      <div class="card">${history}</div>
-
-      <h2>${esc(t('unit.rentHistory'))}</h2>
-      <div class="card">
-        ${rentRows}
-        <form id="rent-form" style="margin-top:14px">
-          <div class="field"><label for="r-amt">${esc(t('unit.newRent'))}</label>
-            <input id="r-amt" name="amount" type="number" inputmode="decimal" step="any" min="0" required></div>
-          <div class="field"><label for="r-from-m">${esc(t('unit.rentStart'))}</label>
-            ${monthField('r-from', 'from', now)}</div>
-          <button class="btn block" type="submit">${esc(t('unit.setRent'))}</button>
-        </form>
-        <p class="tiny" style="margin:10px 0 0">${esc(t('unit.rentNote'))}</p>
-      </div>`,
-    mount() {
-      document.getElementById('rent-form').addEventListener('submit', e => {
-        e.preventDefault();
-        const f = Object.fromEntries(new FormData(e.target));
-        setRent(u, f.from, f.amount);
-        toast(t('unit.rentUpdated'));
-        render();
-      });
-      app.querySelectorAll('[data-rm-rent]').forEach(btn =>
-        btn.addEventListener('click', () => {
-          u.rents = u.rents.filter(r => r.from !== btn.dataset.rmRent);
-          State.save();
-          render();
-        }));
-    }
+      <div class="card">${history}</div>`
   };
 }
 
@@ -284,7 +255,7 @@ function viewBill(unitId, month) {
     elecPrev: open.elecPrev, elecCurr: '',
     waterPrev: open.waterPrev, waterCurr: '',
     elecRate: s.elecRate, waterRate: s.waterRate,
-    rent: rentFor(u, month),
+    rent: rentOf(u),
     adjustment: 0, adjustmentNote: '',
     issuedOn: new Date().toISOString().slice(0, 10)
   };

@@ -6,6 +6,9 @@ const TMP = process.env.OUT_DIR || '.';
 const errors = [];
 const step = async (n, f) => { try { await f(); console.log('  ok  ' + n); } catch (e) { console.log('  FAIL ' + n + ' :: ' + e.message); errors.push(n); } };
 
+const firstUnit = p => p.evaluate(async () =>
+  (await import('./js/store.js')).State.data.units[0]);
+
 const browser = await chromium.launch();
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, acceptDownloads: true });
 const page = await ctx.newPage();
@@ -19,6 +22,7 @@ await page.evaluate(() => {
     version: 1,
     settings: { propertyName: 'Melati', landlordName: 'HP', currency: 'RM', currencyAfter: false,
       elecRate: 0.52, waterRate: 1.35, elecUnit: 'kWh', waterUnit: 'm³', dueDay: 15, invoiceNote: 'Thanks' },
+    // Deliberately the pre-migration shape: a dated rents[] list.
     units: [{ id: 'u1', label: 'A1', tenantName: 'Sarah', phone: '123', archived: false, rents: [{ from: '2026-01', amount: 1200 }] }],
     bills: [{ id: 'b1', unitId: 'u1', month: '2026-10', issuedOn: '2026-10-01',
       elecPrev: 4200, elecCurr: 4512, waterPrev: 880, waterCurr: 914,
@@ -37,6 +41,12 @@ await step('backup downloads a valid file', async () => {
   const parsed = JSON.parse(fs.readFileSync(backupPath, 'utf8'));
   if (parsed.units.length !== 1 || parsed.bills.length !== 1) throw new Error('backup contents wrong');
   if (!/^rental-backup-\d{4}-\d{2}-\d{2}\.json$/.test(dl.suggestedFilename())) throw new Error('bad name ' + dl.suggestedFilename());
+});
+
+await step('an old rents[] list collapses to a single rent', async () => {
+  const u = await firstUnit(page);
+  if (u.rent !== 1200) throw new Error('migrated rent = ' + JSON.stringify(u));
+  if ('rents' in u) throw new Error('rents[] survived migration');
 });
 
 await step('backup timestamp is recorded', async () => {

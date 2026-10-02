@@ -40,7 +40,7 @@ export const State = {
     return {
       version: 1,
       settings: { ...base.settings, ...(d.settings || {}) },
-      units: Array.isArray(d.units) ? d.units : [],
+      units: (Array.isArray(d.units) ? d.units : []).map(migrateUnit),
       bills: Array.isArray(d.bills) ? d.bills : [],
       lastBackupAt: d.lastBackupAt || null
     };
@@ -62,6 +62,15 @@ export const State = {
     this.save();
   }
 };
+
+/* Units used to carry a dated list of rent changes. Collapse any such list to
+   the latest amount; saved bills keep their own snapshot either way. */
+function migrateUnit(u) {
+  if (!Array.isArray(u.rents)) return u;
+  const { rents, ...rest } = u;
+  const latest = rents.slice().sort((a, b) => a.from.localeCompare(b.from)).pop();
+  return { ...rest, rent: Number(rest.rent ?? latest?.amount) || 0 };
+}
 
 export const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 
@@ -100,40 +109,22 @@ export const units = () => State.data.units;
 export const activeUnits = () => State.data.units.filter(u => !u.archived);
 export const findUnit = id => State.data.units.find(u => u.id === id);
 
-export function addUnit({ label, tenantName, phone, rent, rentFrom }) {
+export function addUnit({ label, tenantName, phone, rent }) {
   const unit = {
     id: uid(),
     label: label.trim(),
     tenantName: (tenantName || '').trim(),
     phone: (phone || '').trim(),
+    rent: Number(rent) || 0,
     archived: false,
-    createdAt: new Date().toISOString(),
-    rents: []
+    createdAt: new Date().toISOString()
   };
-  const amount = Number(rent) || 0;
-  if (amount > 0) unit.rents.push({ from: rentFrom || monthKey(), amount });
   State.data.units.push(unit);
   State.save();
   return unit;
 }
 
-/* Rent is stored as a history of changes so past invoices stay correct after an increase. */
-export function rentFor(unit, month) {
-  if (!unit || !unit.rents || !unit.rents.length) return 0;
-  const applicable = unit.rents
-    .filter(r => r.from <= month)
-    .sort((a, b) => a.from.localeCompare(b.from));
-  return applicable.length ? applicable[applicable.length - 1].amount : 0;
-}
-
-export function setRent(unit, from, amount) {
-  unit.rents = (unit.rents || []).filter(r => r.from !== from);
-  unit.rents.push({ from, amount: Number(amount) || 0 });
-  unit.rents.sort((a, b) => a.from.localeCompare(b.from));
-  State.save();
-}
-
-export const currentRent = unit => rentFor(unit, monthKey());
+export const rentOf = unit => Number(unit?.rent) || 0;
 
 /* ---------- bills ---------- */
 
