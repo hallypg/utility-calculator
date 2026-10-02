@@ -9,6 +9,9 @@ export const LOCALES = { en: 'en', vi: 'vi-VN' };
 
 const STRINGS = {
   en: {
+    'app.updateReady': 'New version available — tap to update',
+    'app.updating': 'Updating…',
+
     'tab.units': 'Units',
     'tab.history': 'History',
     'tab.settings': 'Settings',
@@ -177,6 +180,9 @@ const STRINGS = {
   },
 
   vi: {
+    'app.updateReady': 'Đã có phiên bản mới — chạm để cập nhật',
+    'app.updating': 'Đang cập nhật…',
+
     'tab.units': 'Căn hộ',
     'tab.history': 'Lịch sử',
     'tab.settings': 'Cài đặt',

@@ -132,8 +132,28 @@ icons/                  app icons
 
 No build step, no dependencies, no framework. Edit a file and reload.
 
-After changing any file in the app shell, bump `CACHE` in `sw.js` so installed
-copies pick up the new version.
+## Shipping an update
+
+**Bump `CACHE` in `sw.js`** (e.g. `rental-utility-v5` → `v6`) in the same commit
+as any change to `index.html`, `styles.css` or a file in `js/`. Without that the
+service worker keeps serving the cached copy and nobody sees the change.
+
+An app launched from the home screen has no address bar and no reload button, so
+the app handles the rest itself. On launch, and whenever it returns to the
+foreground, it checks for a new version and shows a tappable **"New version
+available"** prompt when one is ready. The running version is left alone until
+the person taps, so an update never swaps files out while someone is part-way
+through entering a bill. Tapping applies it and reloads.
+
+To force a check by hand, fully close the app — App Switcher on iPhone, Recents
+on Android — and reopen it.
+
+Deleting and re-adding the home-screen icon also forces an update, but it
+**destroys the stored records**, because a home-screen app's storage goes with
+it. Take a backup first if there is no other option.
+
+Stored data is unaffected by ordinary updates; it is keyed separately from the
+cached code.
 
 ## Adding another language
 

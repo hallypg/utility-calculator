@@ -62,6 +62,22 @@ function bindMonthFields() {
   });
 }
 
+/* A toast that stays put until tapped — used for the update prompt. */
+function updateToast(onTap) {
+  if (document.querySelector('.toast.tappable')) return;
+  const el = document.createElement('button');
+  el.className = 'toast tappable';
+  el.type = 'button';
+  el.textContent = t('app.updateReady');
+  el.addEventListener('click', () => {
+    el.textContent = t('app.updating');
+    el.disabled = true;
+    onTap();
+  });
+  document.body.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('show'));
+}
+
 let toastTimer;
 function toast(msg) {
   let el = document.querySelector('.toast');
@@ -756,7 +772,44 @@ applyLang(State.data.settings.lang);
 if (!location.hash) location.hash = '#/units';
 render();
 
+/* A home-screen app has no reload button, so it has to offer the update itself.
+   The new worker sits in "waiting" until the person taps. */
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () =>
-    navigator.serviceWorker.register('./sw.js').catch(err => console.warn('SW failed', err)));
+  let reloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (reloading) return;
+    reloading = true;
+    location.reload();
+  });
+
+  window.addEventListener('load', async () => {
+    let reg;
+    try {
+      reg = await navigator.serviceWorker.register('./sw.js');
+    } catch (err) {
+      console.warn('SW failed', err);
+      return;
+    }
+
+    const offer = worker => {
+      if (!worker) return;
+      updateToast(() => worker.postMessage({ type: 'SKIP_WAITING' }));
+    };
+
+    if (reg.waiting) offer(reg.waiting);
+
+    reg.addEventListener('updatefound', () => {
+      const installing = reg.installing;
+      if (!installing) return;
+      installing.addEventListener('statechange', () => {
+        // Only an update, not the very first install.
+        if (installing.state === 'installed' && navigator.serviceWorker.controller) offer(installing);
+      });
+    });
+
+    // Check again whenever the app is brought back to the foreground.
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) reg.update().catch(() => {});
+    });
+  });
 }

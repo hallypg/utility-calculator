@@ -256,6 +256,19 @@ textarea { min-height: 80px; resize: vertical; }
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+.toast.tappable {
+  pointer-events: auto;
+  cursor: pointer;
+  border: 0;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  background: var(--brand);
+  color: #fff;
+}
+.toast.tappable:active { transform: translateX(-50%) scale(.97); }
+.toast.tappable[disabled] { opacity: .7; }
+
 .hist-row { display: flex; align-items: center; gap: 12px; padding: 13px 0; border-bottom: 1px solid var(--line); }
 .hist-row:last-child { border-bottom: 0; }
 .hist-row:first-child { padding-top: 2px; }
