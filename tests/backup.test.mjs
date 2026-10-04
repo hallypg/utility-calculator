@@ -80,7 +80,11 @@ await step('wiping then restoring brings everything back', async () => {
 
   await page.goto(BASE + '/index.html#/settings', { waitUntil: 'networkidle' });
   await page.waitForSelector('#restore-file', { state: 'attached' });
-  page.once('dialog', d => d.accept());
+
+  // The confirmation is rendered in the page, in the app's own language.
+  await page.click('#restore');
+  if (await page.locator('#restore-confirm').isHidden())
+    throw new Error('in-page restore confirmation did not open');
   await page.setInputFiles('#restore-file', backupPath);
   await page.waitForTimeout(600);
 

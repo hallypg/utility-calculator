@@ -10,17 +10,24 @@ storage on the phone it is used on, and nothing is ever sent anywhere.
 
 ## What it does
 
-- **Units** — a list of the units being managed, each with tenant name and phone
-  (tap to call or text).
+- **Units** — a list of the units being managed, each with tenant name, address
+  and phone (tap to call or text). A summary at the top shows how much is
+  awaiting payment and how many bills exist for the current month.
+- **Paid / unpaid** — each bill carries a paid flag, set from its invoice. What
+  is still owed shows against the unit and in the month totals.
 - **Rent per unit** — one monthly amount on the unit, edited whenever it
   changes. Each saved bill keeps a snapshot of the rent it was created with, so
   raising the rent never rewrites invoices already issued.
-- **Monthly bills** — enter this month's electricity and water readings; the
-  opening readings carry over automatically from the previous month. Usage and
-  charges update as you type.
-- **Invoice image** — rendered on the phone and handed to the native share
-  sheet, so it goes directly into WhatsApp, Messages or email as a picture.
-  There is also a plain-text version to copy and paste.
+- **Monthly bills** — electricity and water each get their own card with its
+  rate, last and this month's readings side by side, and a running usage × rate
+  line. Opening readings carry over from the previous month, or from the
+  starting readings entered when the unit was created. The total updates as you
+  type, in a bar pinned above the tab bar.
+- **Invoice screen** — the bill as the tenant sees it: amount, due date, who it
+  is for, line items with meter movements, and the payment note from Settings.
+- **Invoice image** — *Send image* renders the invoice on the phone and hands it
+  to the native share sheet, so it goes into WhatsApp, Messages or email as a
+  picture. There is also a plain-text version to copy and paste.
 - **History** — every bill by month, with month totals, plus CSV export.
 - **Works offline** — once installed, it opens and works with no connection.
 - **English and Vietnamese** — the app picks the phone's language on first run
@@ -115,6 +122,13 @@ changing a rate in Settings, or a unit's rent, affects only future bills and
 never alters history.
 A current reading lower than the previous one is blocked, since it is almost
 always a typo.
+
+## Screen layout
+
+The screens follow a design canvas made separately as a wireframe: the layout
+and the information on each screen come from it, the visual styling does not.
+Primary actions sit in a bar pinned above the tab bar rather than scrolling with
+the content, and Settings is reached from the tab bar rather than the header.
 
 ## Project layout
 

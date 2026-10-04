@@ -74,10 +74,18 @@ function pickSettings(saved) {
 /* Units used to carry a dated list of rent changes. Collapse any such list to
    the latest amount; saved bills keep their own snapshot either way. */
 function migrateUnit(u) {
-  if (!Array.isArray(u.rents)) return u;
-  const { rents, ...rest } = u;
-  const latest = rents.slice().sort((a, b) => a.from.localeCompare(b.from)).pop();
-  return { ...rest, rent: Number(rest.rent ?? latest?.amount) || 0 };
+  let out = u;
+  if (Array.isArray(u.rents)) {
+    const { rents, ...rest } = u;
+    const latest = rents.slice().sort((a, b) => a.from.localeCompare(b.from)).pop();
+    out = { ...rest, rent: Number(rest.rent ?? latest?.amount) || 0 };
+  }
+  return {
+    address: '',
+    startElec: 0,
+    startWater: 0,
+    ...out
+  };
 }
 
 export const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -117,13 +125,17 @@ export const units = () => State.data.units;
 export const activeUnits = () => State.data.units.filter(u => !u.archived);
 export const findUnit = id => State.data.units.find(u => u.id === id);
 
-export function addUnit({ label, tenantName, phone, rent }) {
+export function addUnit({ label, tenantName, phone, rent, address, startElec, startWater }) {
   const unit = {
     id: uid(),
     label: label.trim(),
     tenantName: (tenantName || '').trim(),
     phone: (phone || '').trim(),
+    address: (address || '').trim(),
     rent: Number(rent) || 0,
+    // Opening readings for the very first bill, before any history exists.
+    startElec: Number(startElec) || 0,
+    startWater: Number(startWater) || 0,
     archived: false,
     createdAt: new Date().toISOString()
   };
@@ -153,10 +165,43 @@ export function previousBill(unitId, month) {
 
 export function openingReadings(unitId, month) {
   const prev = previousBill(unitId, month);
+  if (prev) return { elecPrev: prev.elecCurr, waterPrev: prev.waterCurr, fromMonth: prev.month };
+  const unit = findUnit(unitId);
   return {
-    elecPrev: prev ? prev.elecCurr : 0,
-    waterPrev: prev ? prev.waterCurr : 0,
-    fromMonth: prev ? prev.month : null
+    elecPrev: Number(unit?.startElec) || 0,
+    waterPrev: Number(unit?.startWater) || 0,
+    fromMonth: null
+  };
+}
+
+/* ---------- payment ---------- */
+
+export const isPaid = bill => !!bill?.paid;
+
+export function togglePaid(bill) {
+  bill.paid = !bill.paid;
+  bill.paidAt = bill.paid ? new Date().toISOString() : null;
+  State.save();
+  return bill.paid;
+}
+
+export const unpaidBills = () => State.data.bills.filter(b => !b.paid);
+
+export const owedFor = unitId =>
+  State.data.bills
+    .filter(b => b.unitId === unitId && !b.paid)
+    .reduce((sum, b) => sum + compute(b).total, 0);
+
+export const unpaidCountFor = unitId =>
+  State.data.bills.filter(b => b.unitId === unitId && !b.paid).length;
+
+export function summary(month) {
+  const unpaid = unpaidBills();
+  return {
+    owed: round2(unpaid.reduce((sum, b) => sum + compute(b).total, 0)),
+    count: unpaid.length,
+    billedThisMonth: State.data.bills.filter(b => b.month === month).length,
+    unitCount: activeUnits().length
   };
 }
 

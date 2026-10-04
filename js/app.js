@@ -1,8 +1,9 @@
 import {
   State, uid, monthKey, monthLabel, monthShort, shiftMonth,
-  units, activeUnits, findUnit, addUnit, rentOf,
+  activeUnits, findUnit, addUnit, rentOf,
   billsFor, findBill, billForMonth, openingReadings, saveBill, deleteBill,
-  compute, money, num, dueDate, fmtDate, monthNames
+  compute, money, num, dueDate, fmtDate, monthNames, invoiceNumber,
+  summary, owedFor, togglePaid
 } from './store.js';
 import { renderInvoice, invoiceFilename, shareInvoice, invoiceText } from './invoice.js';
 import { t, setLang, getLang, detectLang, plural, LANGUAGES } from './i18n.js';
@@ -17,6 +18,13 @@ const ICON = {
   plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
   share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13"/><path d="M8 7l4-4 4 4"/><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>',
   copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+  home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>',
+  bolt: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>',
+  drop: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.7l5.7 5.7a8 8 0 1 1-11.3 0z"/></svg>',
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>',
+  edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>',
+  down: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>',
+  up: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>',
   warn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>',
   empty: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l7-4 7 4v14"/><path d="M10 21v-5h4v5"/></svg>'
 };
@@ -102,43 +110,70 @@ function viewUnits() {
   const list = activeUnits();
   const now = monthKey();
   const s = State.data.settings;
+  const sum = summary(now);
 
-  const needsRates = !s.elecRate && !s.waterRate;
   const banners = [];
-  if (needsRates && list.length) {
+  if (!s.elecRate && !s.waterRate && list.length) {
     banners.push(`<a class="banner info" href="#/settings">${ICON.warn}<span>${esc(t('units.needRates'))}</span></a>`);
   }
   banners.push(backupBanner());
 
-  const body = list.length ? list.map(u => {
-    const bill = billForMonth(u.id, now);
-    const rent = rentOf(u);
+  if (!list.length) {
+    return {
+      title: t('units.title'),
+      body: banners.join('') + `
+        <div class="empty">
+          ${ICON.empty}
+          <p>${t('units.empty')}</p>
+          <a class="btn primary" href="#/unit/new">${ICON.plus} ${esc(t('units.addFirst'))}</a>
+        </div>`
+    };
+  }
+
+  const summaryCard = `
+    <div class="card summary">
+      <div class="col">
+        <span class="k">${esc(t('units.owing'))}</span>
+        <span class="v">${esc(money(sum.owed))}</span>
+        <span class="s">${esc(sum.count ? t('units.owingCount', { n: sum.count, s: plural(sum.count) }) : t('units.allPaid'))}</span>
+      </div>
+      <div class="col">
+        <span class="k">${esc(t('units.billedThis', { month: monthShort(now) }))}</span>
+        <span class="v">${esc(num(sum.billedThisMonth))}</span>
+        <span class="s">${esc(t('units.created'))}</span>
+      </div>
+    </div>`;
+
+  const cards = list.map(u => {
+    const owed = owedFor(u.id);
+    const billed = billForMonth(u.id, now);
+    const pill = owed > 0
+      ? { cls: 'unpaid', label: t('units.unpaid') }
+      : billed ? { cls: 'done', label: t('units.paid') } : { cls: 'todo', label: t('units.notBilled') };
     return `
       <a class="card tap" href="#/unit/${u.id}">
-        <div class="row between">
-          <div class="grow">
-            <div class="unit-label truncate">${esc(u.label)}</div>
-            <div class="muted truncate">${esc(u.tenantName || t('inv.tenant'))}</div>
-          </div>
-          <span class="pill ${bill ? 'done' : 'todo'}">${esc(bill ? t('units.billed') : t('units.notBilled'))}</span>
-        </div>
-        <div class="row between" style="margin-top:12px">
-          <span class="tiny">${esc(t('units.rent', { amount: money(rent) }))}</span>
-          <span class="amount">${bill ? esc(money(compute(bill).total)) : '—'}</span>
+        <div class="unit-row">
+          <span class="tile">${ICON.home}</span>
+          <span class="grow">
+            <span class="unit-label truncate" style="display:block">${esc(u.label)}</span>
+            <span class="muted truncate" style="display:block">${esc(u.tenantName || t('inv.tenant'))}</span>
+            <span class="tiny" style="display:block">${esc(t('units.rent', { amount: money(rentOf(u)) }))}</span>
+          </span>
+          <span style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+            <span class="pill ${pill.cls}">${esc(pill.label)}</span>
+            ${owed > 0 ? `<span class="owing">${esc(money(owed))}</span>` : ''}
+          </span>
         </div>
       </a>`;
-  }).join('') : `
-    <div class="empty">
-      ${ICON.empty}
-      <p>${t('units.empty')}</p>
-      <a class="btn primary" href="#/unit/new">${ICON.plus} ${esc(t('units.addFirst'))}</a>
-    </div>`;
+  }).join('');
 
   return {
     title: t('units.title'),
-    sub: list.length ? t('units.sub', { n: list.length, s: plural(list.length), month: monthLabel(now) }) : '',
-    actions: list.length ? `<a class="icon-btn" href="#/unit/new" aria-label="${esc(t('units.add'))}">${ICON.plus}</a>` : '',
-    body: banners.join('') + body
+    sub: monthLabel(now),
+    actions: `<a class="icon-btn" href="#/unit/new" aria-label="${esc(t('units.add'))}">${ICON.plus}</a>`,
+    body: banners.join('') + summaryCard +
+      `<div class="eyebrow">${esc(t('units.count', { n: list.length, s: plural(list.length) }))}</div>` +
+      `<div class="stack">${cards}</div>`
   };
 }
 
@@ -154,31 +189,66 @@ function backupBanner() {
 function viewUnitForm(id) {
   const u = id === 'new' ? null : findUnit(id);
   if (id !== 'new' && !u) return notFound();
+  const s = State.data.settings;
+
   return {
     title: u ? t('unit.edit') : t('unit.add'),
     back: u ? `#/unit/${u.id}` : '#/units',
+    bar: true,
     body: `
-      <form id="unit-form" class="card">
-        <div class="field">
-          <label for="f-label">${esc(t('unit.name'))}</label>
-          <input id="f-label" name="label" required placeholder="${esc(t('unit.namePh'))}" value="${esc(u?.label || '')}">
+      <form id="unit-form">
+        <div class="card">
+          <div class="eyebrow" style="margin:0 0 12px">${esc(t('unit.sectionUnit'))}</div>
+          <div class="field">
+            <label for="f-label">${esc(t('unit.name'))}</label>
+            <input id="f-label" name="label" required placeholder="${esc(t('unit.namePh'))}" value="${esc(u?.label || '')}">
+          </div>
+          <div class="field" style="margin-bottom:0">
+            <label for="f-address">${esc(t('unit.address'))}</label>
+            <input id="f-address" name="address" placeholder="${esc(t('unit.addressPh'))}" value="${esc(u?.address || '')}">
+          </div>
         </div>
-        <div class="field">
-          <label for="f-tenant">${esc(t('unit.tenant'))}</label>
-          <input id="f-tenant" name="tenantName" placeholder="${esc(t('unit.tenantPh'))}" value="${esc(u?.tenantName || '')}">
+
+        <div class="card">
+          <div class="eyebrow" style="margin:0 0 12px">${esc(t('unit.sectionTenant'))}</div>
+          <div class="field">
+            <label for="f-tenant">${esc(t('unit.tenant'))}</label>
+            <input id="f-tenant" name="tenantName" placeholder="${esc(t('unit.tenantPh'))}" value="${esc(u?.tenantName || '')}">
+          </div>
+          <div class="field" style="margin-bottom:0">
+            <label for="f-phone">${esc(t('unit.phone'))}</label>
+            <input id="f-phone" name="phone" type="tel" inputmode="tel" placeholder="${esc(t('unit.phonePh'))}" value="${esc(u?.phone || '')}">
+          </div>
         </div>
-        <div class="field">
-          <label for="f-phone">${esc(t('unit.phone'))}</label>
-          <input id="f-phone" name="phone" type="tel" inputmode="tel" placeholder="${esc(t('unit.phonePh'))}" value="${esc(u?.phone || '')}">
+
+        <div class="card">
+          <div class="eyebrow" style="margin:0 0 12px">${esc(t('unit.sectionRent'))}</div>
+          <div class="field" style="margin-bottom:8px">
+            <label for="f-rent">${esc(t('unit.rent'))}</label>
+            <input id="f-rent" name="rent" type="number" inputmode="decimal" step="any" min="0" value="${esc(u ? (u.rent || '') : '')}">
+          </div>
+          <p class="tiny" style="margin:0">${esc(t('unit.rentNote'))}</p>
+          <p class="tiny" style="margin:6px 0 0">${esc(t('unit.ratesFromSettings'))}</p>
         </div>
-        <div class="field">
-          <label for="f-rent">${esc(t('unit.rent'))}</label>
-          <input id="f-rent" name="rent" type="number" inputmode="decimal" step="any" min="0" value="${esc(u ? (u.rent || '') : '')}">
-        </div>
-        <p class="tiny" style="margin:-4px 0 14px">${esc(t('unit.rentNote'))}</p>
-        <button class="btn primary block" type="submit">${esc(u ? t('unit.save') : t('unit.add'))}</button>
+
+        ${u ? '' : `
+        <div class="card">
+          <div class="eyebrow" style="margin:0 0 4px">${esc(t('unit.startReadings'))}</div>
+          <p class="tiny" style="margin:0 0 12px">${esc(t('unit.startHint'))}</p>
+          <div class="two">
+            <div class="field" style="margin-bottom:0">
+              <label for="f-selec">${esc(t('unit.startElec', { unit: s.elecUnit }))}</label>
+              <input id="f-selec" name="startElec" type="number" inputmode="decimal" step="any" min="0" placeholder="0">
+            </div>
+            <div class="field" style="margin-bottom:0">
+              <label for="f-swater">${esc(t('unit.startWater', { unit: s.waterUnit }))}</label>
+              <input id="f-swater" name="startWater" type="number" inputmode="decimal" step="any" min="0" placeholder="0">
+            </div>
+          </div>
+        </div>`}
       </form>
-      ${u ? `<button class="btn danger block" id="archive-unit" style="margin-top:12px">${esc(t('unit.delete'))}</button>` : ''}`,
+      ${u ? `<button class="btn danger block" id="archive-unit">${esc(t('unit.delete'))}</button>` : ''}`,
+    actionbar: `<button class="btn primary block" type="submit" form="unit-form">${esc(u ? t('unit.save') : t('unit.add'))}</button>`,
     mount() {
       document.getElementById('unit-form').addEventListener('submit', e => {
         e.preventDefault();
@@ -187,6 +257,7 @@ function viewUnitForm(id) {
         if (u) {
           Object.assign(u, {
             label: f.label.trim(),
+            address: (f.address || '').trim(),
             tenantName: f.tenantName.trim(),
             phone: f.phone.trim(),
             rent: Number(f.rent) || 0
@@ -218,43 +289,58 @@ function viewUnit(id) {
   if (!u) return notFound();
   const now = monthKey();
   const bills = billsFor(u.id);
-  const rent = rentOf(u);
+  const s = State.data.settings;
   const thisMonth = billForMonth(u.id, now);
 
   const history = bills.length ? bills.map(b => {
     const c = compute(b);
     return `
-      <a class="hist-row" href="#/invoice/${b.id}" style="text-decoration:none;color:inherit">
-        <div class="grow">
-          <div style="font-weight:600">${esc(monthShort(b.month))}</div>
-          <div class="tiny">${esc(t('unit.billSummary', { rent: money(c.rent), utilities: money(c.utilities) }))}</div>
+      <a class="card tap" href="#/invoice/${b.id}">
+        <div class="bill-row">
+          <div class="top">
+            <span class="left">
+              <span style="font-weight:800;font-size:16px">${esc(monthShort(b.month))}</span>
+              <span class="pill ${b.paid ? 'done' : 'unpaid'}">${esc(b.paid ? t('units.paid') : t('units.unpaid'))}</span>
+            </span>
+            <span class="amount">${esc(money(c.total))}</span>
+          </div>
+          <div class="breakdown">
+            <span>${esc(t('inv.rent'))}<b>${esc(money(c.rent))}</b></span>
+            <span>${esc(t('inv.electricity'))} · ${esc(num(c.elecUsed))}<b>${esc(money(c.elecAmount))}</b></span>
+            <span>${esc(t('inv.water'))} · ${esc(num(c.waterUsed))}<b>${esc(money(c.waterAmount))}</b></span>
+          </div>
         </div>
-        <span class="amount">${esc(money(c.total))}</span>
       </a>`;
-  }).join('') : `<p class="muted" style="margin:4px 0">${esc(t('unit.noBills'))}</p>`;
+  }).join('') : `<div class="card"><p class="muted" style="margin:0">${esc(t('unit.noBills'))}</p></div>`;
+
+  const meta = [u.phone, u.address].filter(Boolean).map(esc).join(' · ');
 
   return {
     title: u.label,
     sub: u.tenantName || '',
     back: '#/units',
-    actions: `<a class="icon-btn" href="#/unit/${u.id}/edit" aria-label="${esc(t('unit.edit'))}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></a>`,
+    bar: true,
+    actions: `<a class="icon-btn" href="#/unit/${u.id}/edit" aria-label="${esc(t('unit.edit'))}">${ICON.edit}</a>`,
     body: `
       <div class="card">
-        <div class="row between">
-          <div><div class="tiny">${esc(t('unit.currentRent'))}</div><div class="amount">${esc(money(rent))}</div></div>
-          ${u.phone ? `<div class="row" style="gap:8px">
-            <a class="btn sm" href="tel:${esc(u.phone)}">${esc(t('unit.call'))}</a>
-            <a class="btn sm" href="sms:${esc(u.phone)}">${esc(t('unit.text'))}</a>
-          </div>` : ''}
+        <div class="tiny">${esc(t('inv.tenant'))}</div>
+        <div style="font-size:20px;font-weight:800">${esc(u.tenantName || '—')}</div>
+        ${meta ? `<div class="muted">${meta}</div>` : ''}
+        <div class="row between" style="border-top:1px solid var(--line);margin-top:14px;padding-top:14px">
+          <span class="muted" style="font-weight:600">${esc(t('unit.rentPerMonth'))}</span>
+          <span class="amount">${esc(money(rentOf(u)))}</span>
         </div>
+        ${u.phone ? `<div class="row" style="gap:8px;margin-top:12px">
+          <a class="btn sm" href="tel:${esc(u.phone)}">${esc(t('unit.call'))}</a>
+          <a class="btn sm" href="sms:${esc(u.phone)}">${esc(t('unit.text'))}</a>
+        </div>` : ''}
       </div>
 
-      <a class="btn primary block" href="#/bill/${u.id}/${thisMonth ? thisMonth.month : now}">
-        ${esc(thisMonth ? t('unit.editBill', { month: monthShort(now) }) : t('unit.createBill', { month: monthShort(now) }))}
-      </a>
-
-      <h2>${esc(t('unit.billHistory'))}</h2>
-      <div class="card">${history}</div>`
+      <div class="eyebrow">${esc(t('unit.billHistory'))}</div>
+      <div class="stack">${history}</div>`,
+    actionbar: `<a class="btn primary block" href="#/bill/${u.id}/${thisMonth ? thisMonth.month : now}">
+      ${ICON.plus} ${esc(thisMonth ? t('unit.editBill', { month: monthShort(now) }) : t('unit.newBill', { month: monthShort(now) }))}
+    </a>`
   };
 }
 
@@ -280,86 +366,113 @@ function viewBill(unitId, month) {
     ? `<div class="banner info">${ICON.warn}<span>${esc(t('bill.carried', { month: monthShort(open.fromMonth) }))}</span></div>`
     : '';
 
+  const utility = (kind, icon, unitLabel, prevId, currId, rateId, prevVal, currVal, rateVal) => `
+    <div class="card">
+      <div class="util-head">
+        <span class="tile sm ${kind}">${icon}</span>
+        <span class="name">${esc(kind === 'elec' ? t('inv.electricity') : t('inv.water'))}</span>
+        <span class="rate" id="${rateId}-label"></span>
+      </div>
+      <div class="two">
+        <div class="field" style="margin-bottom:12px">
+          <label for="${prevId}">${esc(t('bill.lastMonth'))}</label>
+          <input id="${prevId}" name="${prevId.slice(2)}" type="number" inputmode="decimal" step="any" min="0" required
+                 placeholder="${esc(unitLabel)}" value="${esc(money0(prevVal))}">
+        </div>
+        <div class="field" style="margin-bottom:12px">
+          <label for="${currId}">${esc(t('bill.thisMonth'))}</label>
+          <input id="${currId}" name="${currId.slice(2)}" type="number" inputmode="decimal" step="any" min="0" required
+                 placeholder="${esc(unitLabel)}" value="${esc(money0(currVal))}">
+        </div>
+      </div>
+      <div class="field" style="margin-bottom:12px">
+        <label for="${rateId}">${esc(t('bill.rate', { unit: unitLabel }))}</label>
+        <input id="${rateId}" name="${rateId.slice(2)}" type="number" inputmode="decimal" step="any" min="0" required value="${esc(money0(rateVal))}">
+      </div>
+      <div id="${kind}-err"></div>
+      <div class="calc-strip ${kind}">
+        <span id="${kind}-calc"></span>
+        <span class="amt" id="${kind}-amt"></span>
+      </div>
+    </div>`;
+
   return {
     title: existing ? t('bill.edit') : t('bill.new'),
-    sub: `${u.label} · ${monthLabel(month)}`,
+    sub: `${u.label}${u.tenantName ? ` · ${u.tenantName}` : ''} · ${monthLabel(month)}`,
     back: `#/unit/${unitId}`,
+    bar: true,
     body: `
       ${carried}
       <form id="bill-form">
         <div class="card">
-          <div class="field">
+          <div class="field" style="margin-bottom:0">
             <label for="b-month-m">${esc(t('bill.month'))}</label>
             ${monthField('b-month', 'month', b.month)}
           </div>
-
-          <h2 style="margin-top:6px">${esc(t('bill.electricity', { unit: s.elecUnit }))}</h2>
-          <div class="two">
-            <div class="field"><label for="b-ep">${esc(t('bill.prev'))}</label>
-              <input id="b-ep" name="elecPrev" type="number" inputmode="decimal" step="any" min="0" required value="${esc(money0(b.elecPrev))}"></div>
-            <div class="field"><label for="b-ec">${esc(t('bill.curr'))}</label>
-              <input id="b-ec" name="elecCurr" type="number" inputmode="decimal" step="any" min="0" required value="${esc(money0(b.elecCurr))}"></div>
-          </div>
-          <div class="field"><label for="b-er">${esc(t('bill.rate', { unit: s.elecUnit }))}</label>
-            <input id="b-er" name="elecRate" type="number" inputmode="decimal" step="any" min="0" required value="${esc(money0(b.elecRate))}"></div>
-
-          <h2>${esc(t('bill.water', { unit: s.waterUnit }))}</h2>
-          <div class="two">
-            <div class="field"><label for="b-wp">${esc(t('bill.prev'))}</label>
-              <input id="b-wp" name="waterPrev" type="number" inputmode="decimal" step="any" min="0" required value="${esc(money0(b.waterPrev))}"></div>
-            <div class="field"><label for="b-wc">${esc(t('bill.curr'))}</label>
-              <input id="b-wc" name="waterCurr" type="number" inputmode="decimal" step="any" min="0" required value="${esc(money0(b.waterCurr))}"></div>
-          </div>
-          <div class="field"><label for="b-wr">${esc(t('bill.rate', { unit: s.waterUnit }))}</label>
-            <input id="b-wr" name="waterRate" type="number" inputmode="decimal" step="any" min="0" required value="${esc(money0(b.waterRate))}"></div>
-
-          <h2>${esc(t('bill.rentSection'))}</h2>
-          <div class="field"><label for="b-rent">${esc(t('bill.rent'))}</label>
-            <input id="b-rent" name="rent" type="number" inputmode="decimal" step="0.01" min="0" required value="${esc(money0(b.rent))}"></div>
-          <div class="two">
-            <div class="field"><label for="b-adj">${esc(t('bill.adjustment'))}</label>
-              <input id="b-adj" name="adjustment" type="number" inputmode="decimal" step="0.01" placeholder="0.00" value="${b.adjustment ? esc(b.adjustment) : ''}"></div>
-            <div class="field"><label for="b-adjn">${esc(t('bill.reason'))}</label>
-              <input id="b-adjn" name="adjustmentNote" placeholder="${esc(t('bill.reasonPh'))}" value="${esc(b.adjustmentNote || '')}"></div>
-          </div>
-          <p class="tiny" style="margin:-4px 0 0">${esc(t('bill.adjustNote'))}</p>
         </div>
 
-        <div class="card readout" id="readout"></div>
-        <div id="bill-err"></div>
-        <button class="btn primary block" type="submit">${esc(existing ? t('bill.save') : t('bill.saveNew'))}</button>
+        ${utility('elec', ICON.bolt, s.elecUnit, 'b-elecPrev', 'b-elecCurr', 'b-elecRate', b.elecPrev, b.elecCurr, b.elecRate)}
+        ${utility('water', ICON.drop, s.waterUnit, 'b-waterPrev', 'b-waterCurr', 'b-waterRate', b.waterPrev, b.waterCurr, b.waterRate)}
+
+        <div class="card">
+          <div class="field" style="margin-bottom:6px">
+            <label for="b-rent" style="font-size:16px;font-weight:800;color:var(--ink)">${esc(t('inv.rent'))}</label>
+            <p class="tiny" style="margin:0 0 8px">${esc(t('bill.rentHint'))}</p>
+            <input id="b-rent" name="rent" type="number" inputmode="decimal" step="any" min="0" required value="${esc(money0(b.rent))}">
+          </div>
+        </div>
+
+        <div class="card">
+          <div style="font-size:16px;font-weight:800">${esc(t('bill.adjustment'))}</div>
+          <p class="tiny" style="margin:2px 0 10px">${esc(t('bill.adjustNote'))}</p>
+          <div class="two">
+            <div class="field" style="margin-bottom:0">
+              <label for="b-adj">${esc(t('bill.amount'))}</label>
+              <input id="b-adj" name="adjustment" type="number" inputmode="decimal" step="any" placeholder="0" value="${b.adjustment ? esc(b.adjustment) : ''}">
+            </div>
+            <div class="field" style="margin-bottom:0">
+              <label for="b-adjn">${esc(t('bill.reason'))}</label>
+              <input id="b-adjn" name="adjustmentNote" placeholder="${esc(t('bill.reasonPh'))}" value="${esc(b.adjustmentNote || '')}">
+            </div>
+          </div>
+        </div>
       </form>
-      ${existing ? `<button class="btn danger block" id="del-bill" style="margin-top:12px">${esc(t('bill.delete'))}</button>` : ''}`,
+      ${existing ? `<button class="btn danger block" id="del-bill">${esc(t('bill.delete'))}</button>` : ''}`,
+    actionbar: `
+      <div class="totals">
+        <span class="lbl">${esc(t('bill.totalFor', { month: monthShort(month) }))}</span>
+        <span class="val" id="bill-total">—</span>
+      </div>
+      <button class="btn primary block" type="submit" form="bill-form">${esc(existing ? t('bill.save') : t('bill.saveNew'))}</button>`,
     mount() {
       const form = document.getElementById('bill-form');
-      const readout = document.getElementById('readout');
-      const errBox = document.getElementById('bill-err');
+      const read = () => ({ ...b, ...Object.fromEntries(new FormData(form)) });
 
-      const read = () => {
-        const f = Object.fromEntries(new FormData(form));
-        return { ...b, ...f };
-      };
-
-      const problems = draft => {
+      const problems = d => {
         const out = [];
-        if (Number(draft.elecCurr) < Number(draft.elecPrev))
-          out.push(t('bill.backwardsElec', { curr: num(draft.elecCurr), prev: num(draft.elecPrev) }));
-        if (Number(draft.waterCurr) < Number(draft.waterPrev))
-          out.push(t('bill.backwardsWater', { curr: num(draft.waterCurr), prev: num(draft.waterPrev) }));
+        if (Number(d.elecCurr) < Number(d.elecPrev))
+          out.push(['elec', t('bill.backwardsElec', { curr: num(d.elecCurr), prev: num(d.elecPrev) })]);
+        if (Number(d.waterCurr) < Number(d.waterPrev))
+          out.push(['water', t('bill.backwardsWater', { curr: num(d.waterCurr), prev: num(d.waterPrev) })]);
         return out;
       };
 
       const refresh = () => {
-        const draft = read();
-        const c = compute(draft);
-        readout.innerHTML = `
-          <div class="line"><span class="lbl">${esc(t('inv.electricity'))} · ${esc(num(c.elecUsed))} ${esc(s.elecUnit)}</span><span>${esc(money(c.elecAmount))}</span></div>
-          <div class="line"><span class="lbl">${esc(t('inv.water'))} · ${esc(num(c.waterUsed))} ${esc(s.waterUnit)}</span><span>${esc(money(c.waterAmount))}</span></div>
-          <div class="line"><span class="lbl">${esc(t('inv.rent'))}</span><span>${esc(money(c.rent))}</span></div>
-          ${c.adjustment ? `<div class="line"><span class="lbl">${esc(draft.adjustmentNote || t('inv.adjustment'))}</span><span>${esc(money(c.adjustment))}</span></div>` : ''}
-          <div class="line total"><span>${esc(t('bill.total'))}</span><span>${esc(money(c.total))}</span></div>`;
-        const errs = problems(draft);
-        errBox.innerHTML = errs.map(e => `<div class="banner">${ICON.warn}<span>${esc(e)}</span></div>`).join('');
+        const d = read();
+        const c = compute(d);
+        document.getElementById('b-elecRate-label').textContent = `${money(d.elecRate)} / ${s.elecUnit}`;
+        document.getElementById('b-waterRate-label').textContent = `${money(d.waterRate)} / ${s.waterUnit}`;
+        document.getElementById('elec-calc').textContent = t('bill.calc', { used: num(c.elecUsed), unit: s.elecUnit, rate: money(d.elecRate) });
+        document.getElementById('water-calc').textContent = t('bill.calc', { used: num(c.waterUsed), unit: s.waterUnit, rate: money(d.waterRate) });
+        document.getElementById('elec-amt').textContent = money(c.elecAmount);
+        document.getElementById('water-amt').textContent = money(c.waterAmount);
+        document.getElementById('bill-total').textContent = money(c.total);
+
+        const errs = Object.fromEntries(problems(d));
+        for (const kind of ['elec', 'water']) {
+          document.getElementById(`${kind}-err`).innerHTML = errs[kind]
+            ? `<div class="field-err" style="margin:0 0 12px">${esc(errs[kind])}</div>` : '';
+        }
       };
 
       form.addEventListener('input', refresh);
@@ -367,33 +480,33 @@ function viewBill(unitId, month) {
 
       form.addEventListener('submit', e => {
         e.preventDefault();
-        const draft = read();
-        if (problems(draft).length) {
+        const d = read();
+        if (problems(d).length) {
           toast(t('bill.fixFirst'));
-          errBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          document.getElementById('elec-err').scrollIntoView({ behavior: 'smooth', block: 'center' });
           return;
         }
         const clash = State.data.bills.find(x =>
-          x.unitId === unitId && x.month === draft.month && x.id !== (existing?.id));
-        if (clash && !confirm(t('bill.confirmReplace', { month: monthLabel(draft.month) }))) return;
+          x.unitId === unitId && x.month === d.month && x.id !== (existing?.id));
+        if (clash && !confirm(t('bill.confirmReplace', { month: monthLabel(d.month) }))) return;
         if (clash) deleteBill(clash.id);
 
-        const payload = {
+        const id = saveBill({
           id: existing?.id,
           unitId,
-          month: draft.month,
+          month: d.month,
           issuedOn: b.issuedOn || new Date().toISOString().slice(0, 10),
-          elecPrev: Number(draft.elecPrev) || 0,
-          elecCurr: Number(draft.elecCurr) || 0,
-          waterPrev: Number(draft.waterPrev) || 0,
-          waterCurr: Number(draft.waterCurr) || 0,
-          elecRate: Number(draft.elecRate) || 0,
-          waterRate: Number(draft.waterRate) || 0,
-          rent: Number(draft.rent) || 0,
-          adjustment: Number(draft.adjustment) || 0,
-          adjustmentNote: (draft.adjustmentNote || '').trim()
-        };
-        const id = saveBill(payload);
+          elecPrev: Number(d.elecPrev) || 0,
+          elecCurr: Number(d.elecCurr) || 0,
+          waterPrev: Number(d.waterPrev) || 0,
+          waterCurr: Number(d.waterCurr) || 0,
+          elecRate: Number(d.elecRate) || 0,
+          waterRate: Number(d.waterRate) || 0,
+          rent: Number(d.rent) || 0,
+          adjustment: Number(d.adjustment) || 0,
+          adjustmentNote: (d.adjustmentNote || '').trim(),
+          paid: existing ? !!existing.paid : false
+        });
         toast(t('bill.saved'));
         nav(`#/invoice/${id}`);
       });
@@ -414,30 +527,100 @@ function viewInvoice(billId) {
   const u = findUnit(bill.unitId);
   if (!u) return notFound();
 
+  const s = State.data.settings;
+  const c = compute(bill);
+  const due = dueDate(bill.month);
+
+  const line = (title, sub, amount) => `
+    <div class="invoice-line">
+      <span>
+        <span class="t">${esc(title)}</span>
+        ${sub.filter(Boolean).map(x => `<span class="s" style="display:block">${esc(x)}</span>`).join('')}
+      </span>
+      <span class="a">${esc(money(amount))}</span>
+    </div>`;
+
   return {
     title: t('invoice.title'),
     sub: `${u.label} · ${monthShort(bill.month)}`,
     back: `#/unit/${bill.unitId}`,
+    bar: true,
+    actions: `<a class="icon-btn" href="#/bill/${bill.unitId}/${bill.month}" aria-label="${esc(t('invoice.editBill'))}">${ICON.edit}</a>`,
     body: `
-      <img class="preview" id="inv-preview" alt="${esc(t('invoice.title'))} — ${esc(u.label)}, ${esc(monthLabel(bill.month))}">
-      <div class="stack" style="margin-top:16px">
-        <button class="btn primary block" id="share-img">${ICON.share} ${esc(t('invoice.send'))}</button>
-        <button class="btn block" id="copy-text">${ICON.copy} ${esc(t('invoice.copy'))}</button>
-        <a class="btn ghost block" href="#/bill/${bill.unitId}/${bill.month}">${esc(t('invoice.editBill'))}</a>
+      <div class="card invoice-card">
+        <div class="invoice-head">
+          <div class="meta"><span>${esc(t('invoice.title').toUpperCase())}</span><span>${esc(invoiceNumber(u, bill.month))}</span></div>
+          <div class="big">${esc(money(c.total))}</div>
+          <div class="foot">
+            <span class="due">${esc(t('invoice.due', { date: fmtDate(due) }))}</span>
+            <span class="pill ${bill.paid ? 'done' : 'unpaid'}">${esc(bill.paid ? t('units.paid') : t('units.unpaid'))}</span>
+          </div>
+        </div>
+
+        <div class="invoice-grid">
+          <span>
+            <span class="k" style="display:block">${esc(t('invoice.billedTo'))}</span>
+            <span class="v" style="display:block">${esc(u.tenantName || t('inv.tenant'))}</span>
+            <span class="s">${esc([u.label, u.address].filter(Boolean).join(', '))}</span>
+          </span>
+          <span>
+            <span class="k" style="display:block">${esc(t('invoice.issued'))}</span>
+            <span class="v" style="display:block">${esc(fmtDate(bill.issuedOn ? new Date(bill.issuedOn) : new Date()))}</span>
+            <span class="s">${esc(t('invoice.forMonth', { month: monthLabel(bill.month) }))}</span>
+          </span>
+        </div>
+
+        <div class="invoice-lines">
+          ${line(t('inv.rent'), [monthLabel(bill.month)], c.rent)}
+          ${line(t('inv.electricity'), [
+            t('invoice.meter', { from: num(bill.elecPrev), to: num(bill.elecCurr) }),
+            t('bill.calc', { used: num(c.elecUsed), unit: s.elecUnit, rate: money(bill.elecRate) })
+          ], c.elecAmount)}
+          ${line(t('inv.water'), [
+            t('invoice.meter', { from: num(bill.waterPrev), to: num(bill.waterCurr) }),
+            t('bill.calc', { used: num(c.waterUsed), unit: s.waterUnit, rate: money(bill.waterRate) })
+          ], c.waterAmount)}
+          ${c.adjustment ? line(bill.adjustmentNote || t('inv.adjustment'), [], c.adjustment) : ''}
+          <div class="invoice-total">
+            <span class="t">${esc(t('invoice.totalDue'))}</span>
+            <span class="a">${esc(money(c.total))}</span>
+          </div>
+        </div>
+
+        ${s.invoiceNote ? `<div class="paybox"><span class="t">${esc(t('invoice.howToPay'))}</span>${esc(s.invoiceNote)}</div>` : ''}
       </div>
-      <p class="tiny" style="text-align:center;margin-top:14px">${esc(t('invoice.due', { date: fmtDate(dueDate(bill.month)) }))}</p>`,
+
+      <details style="margin-top:4px">
+        <summary class="tiny" style="cursor:pointer;padding:8px 6px">${esc(t('invoice.copy'))}</summary>
+        <button class="btn block" id="copy-text" style="margin-top:8px">${ICON.copy} ${esc(t('invoice.copy'))}</button>
+      </details>`,
+    actionbar: bill.paid
+      ? `<div class="paid-banner" style="margin-bottom:10px">${ICON.check} ${esc(t('invoice.paidInFull'))}</div>
+         <div class="two">
+           <button class="btn" id="mark-paid">${esc(t('invoice.markUnpaid'))}</button>
+           <button class="btn primary" id="share-img">${ICON.share} ${esc(t('invoice.sendShort'))}</button>
+         </div>`
+      : `<div class="two">
+           <button class="btn" id="mark-paid">${esc(t('invoice.markPaid'))}</button>
+           <button class="btn primary" id="share-img">${ICON.share} ${esc(t('invoice.sendShort'))}</button>
+         </div>`,
     mount() {
       let canvas;
       try {
         canvas = renderInvoice(bill, u);
-        document.getElementById('inv-preview').src = canvas.toDataURL('image/png');
       } catch (err) {
         console.error(err);
         toast(t('invoice.drawFailed'));
-        return;
       }
 
+      document.getElementById('mark-paid').addEventListener('click', () => {
+        const paid = togglePaid(bill);
+        toast(paid ? t('invoice.markedPaid') : t('invoice.markedUnpaid'));
+        render();
+      });
+
       document.getElementById('share-img').addEventListener('click', async e => {
+        if (!canvas) return;
         const btn = e.currentTarget;
         btn.disabled = true;
         try {
@@ -477,23 +660,30 @@ function viewHistory() {
   const body = Object.keys(groups).sort((a, b) => b.localeCompare(a)).map(month => {
     const rows = groups[month];
     const total = rows.reduce((sum, b) => sum + compute(b).total, 0);
+    const owed = rows.filter(b => !b.paid).reduce((sum, b) => sum + compute(b).total, 0);
     return `
-      <h2>${esc(monthLabel(month))}</h2>
+      <div class="eyebrow">${esc(monthLabel(month))}</div>
       <div class="card">
         ${rows.map(b => {
           const u = findUnit(b.unitId);
           const c = compute(b);
           return `<a class="hist-row" href="#/invoice/${b.id}" style="text-decoration:none;color:inherit">
-            <div class="grow">
-              <div style="font-weight:600">${esc(u ? u.label : t('history.deletedUnit'))}</div>
-              <div class="tiny">${esc(t('history.rowSummary', { rent: money(c.rent), elec: money(c.elecAmount), water: money(c.waterAmount) }))}</div>
-            </div>
-            <span class="amount">${esc(money(c.total))}</span>
+            <span class="grow">
+              <span style="font-weight:600;display:block">${esc(u ? u.label : t('history.deletedUnit'))}</span>
+              <span class="tiny">${esc(t('history.rowSummary', { rent: money(c.rent), elec: money(c.elecAmount), water: money(c.waterAmount) }))}</span>
+            </span>
+            <span style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
+              <span class="amount">${esc(money(c.total))}</span>
+              <span class="pill ${b.paid ? 'done' : 'unpaid'}">${esc(b.paid ? t('units.paid') : t('units.unpaid'))}</span>
+            </span>
           </a>`;
         }).join('')}
         <div class="hist-row" style="border-top:2px solid var(--line);border-bottom:0">
           <span class="grow" style="font-weight:700">${esc(t('history.monthTotal'))}</span>
-          <span class="amount">${esc(money(total))}</span>
+          <span style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
+            <span class="amount">${esc(money(total))}</span>
+            ${owed > 0 ? `<span class="owing">${esc(money(owed))}</span>` : ''}
+          </span>
         </div>
       </div>`;
   }).join('');
@@ -508,6 +698,8 @@ function viewHistory() {
   };
 }
 
+const CURRENCIES = ['$', '₫', 'RM', '€', '£', '¥', '₹', 'Rp'];
+
 function viewSettings() {
   const s = State.data.settings;
   const last = State.data.lastBackupAt ? new Date(State.data.lastBackupAt) : null;
@@ -515,87 +707,158 @@ function viewSettings() {
   return {
     title: t('set.title'),
     body: `
-      <form id="set-form" class="card">
-        <h2 style="margin-top:0">${esc(t('set.language'))}</h2>
-        <div class="field">
-          <select id="s-lang" name="lang">
-            ${LANGUAGES.map(l => `<option value="${l.code}" ${l.code === getLang() ? 'selected' : ''}>${esc(l.name)}</option>`).join('')}
-          </select>
+      <div class="eyebrow">${esc(t('set.language'))}</div>
+      <div class="card rowlist">
+        ${LANGUAGES.map(l => `
+          <button type="button" data-lang="${l.code}" aria-pressed="${l.code === getLang()}">
+            <span>${esc(l.name)}</span>
+            ${l.code === getLang() ? ICON.check : ''}
+          </button>`).join('')}
+      </div>
+
+      <form id="set-form">
+        <div class="eyebrow">${esc(t('set.rates'))}</div>
+        <div class="card">
+          <div class="rate-row">
+            <span class="tile sm elec">${ICON.bolt}</span>
+            <label for="s-er">${esc(t('set.elecRate'))}<span>${esc(s.currency)} / ${esc(s.elecUnit)}</span></label>
+            <input id="s-er" name="elecRate" type="number" inputmode="decimal" step="any" min="0" value="${esc(money0(s.elecRate))}">
+          </div>
+          <div class="rate-row">
+            <span class="tile sm water">${ICON.drop}</span>
+            <label for="s-wr">${esc(t('set.waterRate'))}<span>${esc(s.currency)} / ${esc(s.waterUnit)}</span></label>
+            <input id="s-wr" name="waterRate" type="number" inputmode="decimal" step="any" min="0" value="${esc(money0(s.waterRate))}">
+          </div>
+          <div class="two">
+            <div class="field" style="margin-bottom:0">
+              <label for="s-eu">${esc(t('set.elecUnitLabel'))}</label>
+              <input id="s-eu" name="elecUnit" value="${esc(s.elecUnit)}">
+            </div>
+            <div class="field" style="margin-bottom:0">
+              <label for="s-wu">${esc(t('set.waterUnitLabel'))}</label>
+              <input id="s-wu" name="waterUnit" value="${esc(s.waterUnit)}">
+            </div>
+          </div>
+          <p class="tiny" style="margin:12px 0 0;border-top:1px solid var(--line);padding-top:12px">${esc(t('set.ratesNote'))}</p>
         </div>
 
-        <h2>${esc(t('set.rates'))}</h2>
-        <div class="two">
-          <div class="field"><label for="s-er">${esc(t('set.elecRate'))}</label>
-            <input id="s-er" name="elecRate" type="number" inputmode="decimal" step="any" min="0" value="${esc(money0(s.elecRate))}"></div>
-          <div class="field"><label for="s-eu">${esc(t('set.perUnit'))}</label>
-            <input id="s-eu" name="elecUnit" value="${esc(s.elecUnit)}"></div>
+        <div class="eyebrow">${esc(t('set.currency'))}</div>
+        <div class="card">
+          <div class="eyebrow" style="margin:0 0 10px">${esc(t('set.currencyPresets'))}</div>
+          <div class="seg">
+            ${CURRENCIES.map(sym => `<button type="button" data-cur="${esc(sym)}" aria-pressed="${sym === s.currency}">${esc(sym)}</button>`).join('')}
+          </div>
+          <div class="rate-row" style="margin:16px 0 0">
+            <label for="s-cur">${esc(t('set.currencyOwn'))}</label>
+            <input id="s-cur" name="currency" maxlength="4" value="${esc(s.currency)}">
+          </div>
+          <div class="two">
+            <div class="field" style="margin-bottom:0">
+              <label for="s-dec">${esc(t('set.decimals'))}</label>
+              <select id="s-dec" name="decimals">
+                <option value="0" ${s.decimals === 0 ? 'selected' : ''}>0</option>
+                <option value="2" ${s.decimals !== 0 ? 'selected' : ''}>2</option>
+              </select>
+            </div>
+            <div class="field" style="margin-bottom:0">
+              <label for="s-due">${esc(t('set.dueDay'))}</label>
+              <input id="s-due" name="dueDay" type="number" inputmode="numeric" min="1" max="28" value="${esc(s.dueDay)}">
+            </div>
+          </div>
+          <div class="field switch" style="margin:14px 0 0">
+            <input id="s-after" name="currencyAfter" type="checkbox" ${s.currencyAfter ? 'checked' : ''}>
+            <label for="s-after" style="margin:0">${esc(t('set.symbolAfter'))}</label>
+          </div>
+          <div class="preview-row"><span class="muted">${esc(t('set.preview'))}</span><b id="cur-preview">${esc(money(1234.5))}</b></div>
         </div>
-        <div class="two">
-          <div class="field"><label for="s-wr">${esc(t('set.waterRate'))}</label>
-            <input id="s-wr" name="waterRate" type="number" inputmode="decimal" step="any" min="0" value="${esc(money0(s.waterRate))}"></div>
-          <div class="field"><label for="s-wu">${esc(t('set.perUnit'))}</label>
-            <input id="s-wu" name="waterUnit" value="${esc(s.waterUnit)}"></div>
-        </div>
-        <p class="tiny" style="margin:-4px 0 0">${esc(t('set.ratesNote'))}</p>
 
-        <h2>${esc(t('set.invoice'))}</h2>
-        <div class="two">
-          <div class="field"><label for="s-cur">${esc(t('set.currency'))}</label>
-            <input id="s-cur" name="currency" value="${esc(s.currency)}"></div>
-          <div class="field"><label for="s-dec">${esc(t('set.decimals'))}</label>
-            <select id="s-dec" name="decimals">
-              <option value="0" ${s.decimals === 0 ? 'selected' : ''}>0</option>
-              <option value="2" ${s.decimals !== 0 ? 'selected' : ''}>2</option>
-            </select></div>
+        <div class="eyebrow">${esc(t('set.invoice'))}</div>
+        <div class="card">
+          <div class="field" style="margin-bottom:0">
+            <label for="s-note">${esc(t('invoice.howToPay'))}</label>
+            <textarea id="s-note" name="invoiceNote" placeholder="${esc(t('set.notePh'))}">${esc(s.invoiceNote)}</textarea>
+          </div>
         </div>
-        <div class="field"><label for="s-due">${esc(t('set.dueDay'))}</label>
-          <input id="s-due" name="dueDay" type="number" inputmode="numeric" min="1" max="28" value="${esc(s.dueDay)}"></div>
-        <div class="field switch">
-          <input id="s-after" name="currencyAfter" type="checkbox" ${s.currencyAfter ? 'checked' : ''}>
-          <label for="s-after" style="margin:0">${esc(t('set.symbolAfter'))}</label>
-        </div>
-        <div class="field"><label for="s-note">${esc(t('set.note'))}</label>
-          <textarea id="s-note" name="invoiceNote" placeholder="${esc(t('set.notePh'))}">${esc(s.invoiceNote)}</textarea></div>
 
         <button class="btn primary block" type="submit">${esc(t('set.save'))}</button>
       </form>
 
-      <h2>${esc(t('set.data'))}</h2>
+      <div class="eyebrow">${esc(t('set.data'))}</div>
       ${backupBanner()}
       <div class="card stack">
-        <p class="tiny" style="margin:0">
-          ${esc(t('set.dataNote'))}
-          ${last ? `<br><br>${esc(t('set.lastBackup', { date: fmtDate(last) }))}` : ''}
-        </p>
-        <button class="btn primary block" id="backup">${esc(t('set.backup'))}</button>
-        <button class="btn block" id="restore">${esc(t('set.restore'))}</button>
+        <div>
+          <div style="font-weight:700">${esc(t('set.backup'))}</div>
+          <div class="muted">${esc(last ? fmtDate(last) : t('set.neverBackedUp'))}</div>
+        </div>
+        <p class="tiny" style="margin:0">${esc(t('set.backupHint'))}</p>
+        <button class="btn primary block" id="backup">${ICON.down} ${esc(t('set.backup'))}</button>
+        <button class="btn block" id="restore">${ICON.up} ${esc(t('set.restore'))}</button>
+        <div class="confirm" id="restore-confirm" hidden>
+          <p><strong>${esc(t('set.restoreConfirmTitle'))}</strong><br>${esc(t('set.restoreConfirmBody'))}</p>
+          <div class="two">
+            <button class="btn" id="restore-cancel">${esc(t('set.cancel'))}</button>
+            <button class="btn danger" id="restore-go">${esc(t('set.chooseFile'))}</button>
+          </div>
+        </div>
         <button class="btn block" id="csv2">${esc(t('set.exportCsv'))}</button>
         <input type="file" id="restore-file" accept="application/json,.json" hidden>
       </div>
 
-      <h2>${esc(t('set.danger'))}</h2>
+      <div class="eyebrow">${esc(t('set.danger'))}</div>
       <div class="card">
         <button class="btn danger block" id="wipe">${esc(t('set.wipe'))}</button>
       </div>
       <p class="tiny" style="text-align:center;margin:18px 0 0">${esc(t('set.footer'))}</p>`,
     mount() {
-      document.getElementById('set-form').addEventListener('submit', e => {
+      app.querySelectorAll('[data-lang]').forEach(btn =>
+        btn.addEventListener('click', () => {
+          State.data.settings.lang = btn.dataset.lang;
+          State.save();
+          applyLang(btn.dataset.lang);
+          render();
+        }));
+
+      const form = document.getElementById('set-form');
+      const curInput = document.getElementById('s-cur');
+
+      /* The preview reads from a throwaway copy, so nothing is saved until Save. */
+      const preview = () => {
+        const kept = State.data.settings;
+        State.data.settings = {
+          ...kept,
+          currency: curInput.value || '$',
+          currencyAfter: document.getElementById('s-after').checked,
+          decimals: Number(document.getElementById('s-dec').value) === 0 ? 0 : 2
+        };
+        document.getElementById('cur-preview').textContent = money(1234.5);
+        State.data.settings = kept;
+      };
+      form.addEventListener('input', preview);
+      preview();
+
+      app.querySelectorAll('[data-cur]').forEach(btn =>
+        btn.addEventListener('click', () => {
+          curInput.value = btn.dataset.cur;
+          app.querySelectorAll('[data-cur]').forEach(b =>
+            b.setAttribute('aria-pressed', String(b === btn)));
+          preview();
+        }));
+
+      form.addEventListener('submit', e => {
         e.preventDefault();
         const f = new FormData(e.target);
         Object.assign(State.data.settings, {
-          lang: f.get('lang'),
-          decimals: Number(f.get('decimals')) === 0 ? 0 : 2,
           elecRate: Number(f.get('elecRate')) || 0,
           waterRate: Number(f.get('waterRate')) || 0,
           elecUnit: f.get('elecUnit').trim() || 'kWh',
           waterUnit: f.get('waterUnit').trim() || 'm³',
           currency: f.get('currency') || '$',
           currencyAfter: f.get('currencyAfter') === 'on',
+          decimals: Number(f.get('decimals')) === 0 ? 0 : 2,
           dueDay: Math.min(Math.max(Number(f.get('dueDay')) || 15, 1), 28),
           invoiceNote: f.get('invoiceNote').trim()
         });
         State.save();
-        applyLang(State.data.settings.lang);
         toast(t('set.saved'));
         render();
       });
@@ -603,16 +866,20 @@ function viewSettings() {
       document.getElementById('backup').addEventListener('click', backup);
       document.getElementById('csv2').addEventListener('click', exportCsv);
 
+      /* Restore confirms in the page, so the wording is in the app's language
+         rather than the phone's. */
+      const box = document.getElementById('restore-confirm');
       const picker = document.getElementById('restore-file');
-      document.getElementById('restore').addEventListener('click', () => picker.click());
+      document.getElementById('restore').addEventListener('click', () => { box.hidden = false; });
+      document.getElementById('restore-cancel').addEventListener('click', () => { box.hidden = true; });
+      document.getElementById('restore-go').addEventListener('click', () => picker.click());
+
       picker.addEventListener('change', async () => {
         const file = picker.files[0];
         if (!file) return;
         try {
           const parsed = JSON.parse(await file.text());
           if (!parsed || !Array.isArray(parsed.units)) throw new Error('Not a backup file');
-          const n = (parsed.bills || []).length;
-          if (!confirm(t('set.confirmRestore', { units: parsed.units.length, bills: n }))) return;
           State.replaceAll(parsed);
           applyLang(State.data.settings.lang);
           toast(t('set.restored'));
@@ -622,6 +889,7 @@ function viewSettings() {
           alert(t('set.badFile'));
         } finally {
           picker.value = '';
+          box.hidden = true;
         }
       });
 
@@ -729,6 +997,10 @@ function render() {
     ${view.actions || ''}`;
 
   app.innerHTML = view.body;
+  app.classList.toggle('has-bar', !!view.bar);
+  document.getElementById('actionbar').innerHTML =
+    view.actionbar ? `<div class="inner">${view.actionbar}</div>` : '';
+  document.getElementById('actionbar').hidden = !view.actionbar;
   bindMonthFields();
   view.mount?.();
 

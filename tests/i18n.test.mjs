@@ -50,21 +50,21 @@ await step('vi: full flow in Vietnamese', async () => {
   await vi.fill('#f-tenant', 'Nguyễn Thị Lan');
   await vi.fill('#f-phone', '0912 345 678');
   await vi.fill('#f-rent', '3000000');
-  await vi.click('#unit-form button[type="submit"]');
-  await vi.waitForSelector('text=Tiền thuê hiện tại');
+  await vi.click('#actionbar button[type="submit"]');
+  await vi.waitForSelector('text=Tiền thuê / tháng');
 
-  await vi.click('a.btn.primary');
-  await vi.fill('#b-ep', '1200');
-  await vi.fill('#b-ec', '1350');
-  await vi.fill('#b-wp', '40');
-  await vi.fill('#b-wc', '48');
+  await vi.click('#actionbar a.btn.primary');
+  await vi.fill('#b-elecPrev', '1200');
+  await vi.fill('#b-elecCurr', '1350');
+  await vi.fill('#b-waterPrev', '40');
+  await vi.fill('#b-waterCurr', '48');
   // 150 × 3500 = 525.000 ; 8 × 15000 = 120.000 ; + 3.000.000 = 3.645.000
   await vi.waitForFunction(() =>
-    document.querySelector('#readout .total span:last-child')?.textContent.includes('3.645.000'));
+    document.querySelector('#bill-total')?.textContent.includes('3.645.000'));
 });
 
 await step('vi: money uses Vietnamese separators and no decimals', async () => {
-  const txt = await vi.textContent('#readout .total span:last-child');
+  const txt = await vi.textContent('#bill-total');
   if (!txt.includes('3.645.000')) throw new Error('separators wrong: ' + txt);
   if (txt.includes(',00')) throw new Error('decimals shown for VND: ' + txt);
   if (!txt.trim().endsWith('₫')) throw new Error('symbol not trailing: ' + txt);
@@ -100,14 +100,20 @@ await step('en: month picker uses English month names', async () => {
 });
 
 await step('vi: invoice renders in Vietnamese', async () => {
-  await vi.click('#bill-form button[type="submit"]');
+  await vi.click('#actionbar button[type="submit"]');
   await vi.waitForURL(/#\/invoice\//);
-  await vi.waitForFunction(() => {
-    const img = document.getElementById('inv-preview');
-    return img && img.src.startsWith('data:image/png') && img.naturalHeight > 400;
-  }, null, { timeout: 5000 });
-  fs.writeFileSync(OUT + '/invoice-vi.png',
-    Buffer.from((await vi.getAttribute('#inv-preview', 'src')).split(',')[1], 'base64'));
+  await vi.waitForSelector('.invoice-card');
+  const screen = (await vi.textContent('.invoice-card')).replace(/\s+/g, ' ');
+  for (const want of ['3.645.000 ₫', 'Nguyễn Thị Lan', 'Tổng phải trả']) {
+    if (!screen.includes(want)) throw new Error('missing "' + want + '" on screen: ' + screen.slice(0, 300));
+  }
+  const src = await vi.evaluate(async () => {
+    const inv = await import('./js/invoice.js');
+    const st = await import('./js/store.js');
+    const b = st.State.data.bills[0];
+    return inv.renderInvoice(b, st.findUnit(b.unitId)).toDataURL('image/png');
+  });
+  fs.writeFileSync(OUT + '/invoice-vi.png', Buffer.from(src.split(',')[1], 'base64'));
 
   const text = await vi.evaluate(async () => {
     const m = await import('./js/invoice.js');
@@ -126,16 +132,18 @@ await step('vi: screenshots', async () => {
   await vi.screenshot({ path: OUT + '/screen-units-vi.png' });
   const id = await vi.evaluate(async () => (await import('./js/store.js')).State.data.bills[0].unitId);
   await vi.goto(BASE + '/index.html#/bill/' + id + '/2026-12');
-  await vi.fill('#b-ec', '1500');
-  await vi.fill('#b-wc', '55');
+  await vi.fill('#b-elecCurr', '1500');
+  await vi.fill('#b-waterCurr', '55');
   await vi.waitForTimeout(150);
   await vi.screenshot({ path: OUT + '/screen-bill-vi.png', fullPage: true });
 });
 
 await step('vi: switching to English keeps the data', async () => {
   await vi.goto(BASE + '/index.html#/settings');
-  await vi.selectOption('#s-lang', 'en');
-  await vi.click('#set-form button[type="submit"]');
+  await vi.waitForSelector('[data-lang="en"]');
+  if (await vi.getAttribute('[data-lang="vi"]', 'aria-pressed') !== 'true')
+    throw new Error('Vietnamese row not marked as selected');
+  await vi.click('[data-lang="en"]');
   await vi.waitForTimeout(300);
   await vi.goto(BASE + '/index.html#/units');
   await vi.waitForSelector('text=Nguyễn Thị Lan');
