@@ -3,7 +3,7 @@ import {
   activeUnits, findUnit, addUnit, rentOf,
   billsFor, findBill, billForMonth, openingReadings, saveBill, deleteBill,
   compute, money, num, dueDate, fmtDate, monthNames, invoiceNumber,
-  summary, owedFor, togglePaid, nextBillMonth
+  summary, owedFor, togglePaid
 } from './store.js';
 import { renderInvoice, invoiceFilename, shareInvoice, invoiceText } from './invoice.js';
 import { t, setLang, getLang, detectLang, plural, LANGUAGES } from './i18n.js';
@@ -970,7 +970,7 @@ const ROUTES = [
   [/^\/unit\/new$/, () => viewUnitForm('new')],
   [/^\/unit\/([^/]+)\/edit$/, id => viewUnitForm(id)],
   [/^\/unit\/([^/]+)$/, id => viewUnit(id)],
-  [/^\/bill\/([^/]+)\/new$/, unitId => viewBill(unitId, nextBillMonth(unitId), true)],
+  [/^\/bill\/([^/]+)\/new$/, unitId => viewBill(unitId, monthKey(), true)],
   [/^\/bill\/([^/]+)\/([^/]+)$/, (unitId, month) => viewBill(unitId, month)],
   [/^\/invoice\/([^/]+)$/, id => viewInvoice(id)],
   [/^\/history$/, viewHistory],

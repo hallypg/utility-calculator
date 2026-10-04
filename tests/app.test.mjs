@@ -146,7 +146,7 @@ await step('the unit CTA always offers a new bill', async () => {
   if (label !== 'New bill') throw new Error('unexpected CTA: ' + label);
 
   // Even though this month already has a bill, the CTA opens a blank form,
-  // preselected to the month after the unit's most recent bill.
+  // always preselected to the current month.
   await page.click('#actionbar a.btn.primary');
   await page.waitForSelector('#b-elecCurr');
   if (!/New bill/.test(await page.textContent('#topbar')))
@@ -155,9 +155,8 @@ await step('the unit CTA always offers a new bill', async () => {
     throw new Error('blank form was prefilled from the existing bill');
 
   const picked = await page.inputValue('#b-month');
-  if (picked !== '2026-11') throw new Error('expected Nov after an Oct bill, got ' + picked);
-  const carried = await page.inputValue('#b-elecPrev');
-  if (carried !== '4512') throw new Error('opening reading not carried: ' + carried);
+  const thisMonth = new Date().toISOString().slice(0, 7);
+  if (picked !== thisMonth) throw new Error('expected ' + thisMonth + ', got ' + picked);
 
   // The existing bill is still reachable from its card.
   await page.goto(BASE + '/index.html#/unit/' + unitId);

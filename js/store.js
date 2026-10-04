@@ -163,11 +163,6 @@ export function previousBill(unitId, month) {
   return earlier.length ? earlier[earlier.length - 1] : null;
 }
 
-export function nextBillMonth(unitId) {
-  const latest = billsFor(unitId)[0];
-  return latest ? shiftMonth(latest.month, 1) : monthKey();
-}
-
 export function openingReadings(unitId, month) {
   const prev = previousBill(unitId, month);
   if (prev) return { elecPrev: prev.elecCurr, waterPrev: prev.waterCurr, fromMonth: prev.month };
