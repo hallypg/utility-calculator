@@ -28,8 +28,6 @@ await step('empty state renders', async () => {
 
 await step('save settings', async () => {
   await page.click('[data-tab="settings"]');
-  await page.fill('#s-prop', 'Jalan Melati Rentals');
-  await page.fill('#s-land', 'H. Pang');
   await page.fill('#s-er', '0.52');
   await page.fill('#s-wr', '1.35');
   await page.fill('#s-cur', 'RM');
@@ -166,7 +164,6 @@ await step('history and CSV', async () => {
 await step('data survives a reload', async () => {
   await page.goto(BASE + '/index.html#/units', { waitUntil: 'networkidle' });
   await page.reload({ waitUntil: 'networkidle' });
-  await page.waitForSelector('text=Jalan Melati Rentals');
   await page.waitForSelector('text=Sarah Lim');
   const persisted = await page.evaluate(() => {
     const d = JSON.parse(localStorage.getItem('rmu.v1'));

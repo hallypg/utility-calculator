@@ -6,8 +6,6 @@ const STORAGE_KEY = 'rmu.v1';
 
 const DEFAULT_SETTINGS = {
   lang: '',
-  propertyName: '',
-  landlordName: '',
   currency: '$',
   currencyAfter: false,
   elecRate: 0,
@@ -39,7 +37,7 @@ export const State = {
     const base = blank();
     return {
       version: 1,
-      settings: { ...base.settings, ...(d.settings || {}) },
+      settings: pickSettings(d.settings),
       units: (Array.isArray(d.units) ? d.units : []).map(migrateUnit),
       bills: Array.isArray(d.bills) ? d.bills : [],
       lastBackupAt: d.lastBackupAt || null
@@ -62,6 +60,16 @@ export const State = {
     this.save();
   }
 };
+
+/* Keep only settings this build knows about, so fields dropped in a later
+   version do not linger in storage or in backup files. */
+function pickSettings(saved) {
+  const out = { ...DEFAULT_SETTINGS };
+  for (const key of Object.keys(DEFAULT_SETTINGS)) {
+    if (saved && saved[key] !== undefined) out[key] = saved[key];
+  }
+  return out;
+}
 
 /* Units used to carry a dated list of rent changes. Collapse any such list to
    the latest amount; saved bills keep their own snapshot either way. */

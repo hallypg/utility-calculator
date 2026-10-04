@@ -56,27 +56,22 @@ export function renderInvoice(bill, unit) {
   ctx.fillRect(0, 0, W, scratch.height);
 
   /* ---- header band ---- */
-  const headerH = 196;
+  const headerH = 172;
   ctx.fillStyle = BRAND;
   ctx.fillRect(0, 0, W, headerH);
 
-  ctx.fillStyle = 'rgba(255,255,255,0.82)';
-  ctx.font = font(600, 26);
-  ctx.fillText(t('inv.heading'), PAD, 74);
-
   ctx.fillStyle = '#FFFFFF';
   ctx.font = font(700, 46);
-  const title = s.propertyName || t('inv.fallbackTitle');
-  ctx.fillText(wrap(ctx, title, W - PAD * 2 - 260)[0], PAD, 132);
+  ctx.fillText(t('invoice.title'), PAD, 100);
 
   ctx.font = font(500, 24);
   ctx.fillStyle = 'rgba(255,255,255,0.78)';
-  ctx.fillText(monthLabel(bill.month), PAD, 170);
+  ctx.fillText(monthLabel(bill.month), PAD, 140);
 
   ctx.textAlign = 'right';
   ctx.font = font(600, 24);
   ctx.fillStyle = 'rgba(255,255,255,0.92)';
-  ctx.fillText(invoiceNumber(unit, bill.month), W - PAD, 74);
+  ctx.fillText(invoiceNumber(unit, bill.month), W - PAD, 100);
   ctx.textAlign = 'left';
 
   let y = headerH + 62;
@@ -185,13 +180,6 @@ export function renderInvoice(bill, unit) {
     y += 18;
   }
 
-  if (s.landlordName) {
-    ctx.fillStyle = MUTED;
-    ctx.font = font(500, 24);
-    ctx.fillText(s.landlordName, PAD, y);
-    y += 34;
-  }
-
   y += 24;
 
   /* ---- crop to content ---- */
@@ -242,7 +230,7 @@ export function invoiceText(bill, unit) {
   const s = State.data.settings;
   const c = compute(bill);
   const lines = [
-    `${s.propertyName || t('inv.fallbackTitle')} — ${monthLabel(bill.month)}`,
+    `${t('invoice.title')} — ${monthLabel(bill.month)}`,
     `${t('inv.unit', { label: unit.label })}${unit.tenantName ? ` · ${unit.tenantName}` : ''}`,
     '',
     `${t('inv.rent')}: ${money(c.rent)}`,

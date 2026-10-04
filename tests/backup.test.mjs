@@ -20,6 +20,7 @@ await page.goto(BASE + '/index.html', { waitUntil: 'networkidle' });
 await page.evaluate(() => {
   localStorage.setItem('rmu.v1', JSON.stringify({
     version: 1,
+    // propertyName/landlordName are from an older build; migration should drop them.
     settings: { propertyName: 'Melati', landlordName: 'HP', currency: 'RM', currencyAfter: false,
       elecRate: 0.52, waterRate: 1.35, elecUnit: 'kWh', waterUnit: 'm³', dueDay: 15, invoiceNote: 'Thanks' },
     // Deliberately the pre-migration shape: a dated rents[] list.
@@ -41,6 +42,13 @@ await step('backup downloads a valid file', async () => {
   const parsed = JSON.parse(fs.readFileSync(backupPath, 'utf8'));
   if (parsed.units.length !== 1 || parsed.bills.length !== 1) throw new Error('backup contents wrong');
   if (!/^rental-backup-\d{4}-\d{2}-\d{2}\.json$/.test(dl.suggestedFilename())) throw new Error('bad name ' + dl.suggestedFilename());
+});
+
+await step('settings dropped in a later build are cleaned out', async () => {
+  const st = await page.evaluate(() => JSON.parse(localStorage.getItem('rmu.v1')).settings);
+  if ('propertyName' in st || 'landlordName' in st)
+    throw new Error('stale settings survived: ' + JSON.stringify(Object.keys(st)));
+  if (st.currency !== 'RM') throw new Error('known settings lost: ' + JSON.stringify(st));
 });
 
 await step('an old rents[] list collapses to a single rent', async () => {

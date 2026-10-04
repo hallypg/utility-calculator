@@ -6,6 +6,9 @@ import fs from 'node:fs';
 const BASE = 'http://127.0.0.1:8766';
 const SW = 'sw.js';
 const original = fs.readFileSync(SW, 'utf8');
+// Derived, not hardcoded, so bumping the cache in sw.js never breaks this test.
+const CURRENT = original.match(/const CACHE = '([^']+)'/)[1];
+const NEXT = CURRENT + '-next';
 const errors = [];
 const step = async (n, f) => { try { await f(); console.log('  ok  ' + n); } catch (e) { console.log('  FAIL ' + n + ' :: ' + e.message); errors.push(n + ': ' + e.message); } };
 
@@ -20,7 +23,7 @@ try {
   await step('service worker takes control', async () => {
     await page.waitForFunction(() => navigator.serviceWorker.controller !== null, null, { timeout: 15000 });
     const names = await page.evaluate(() => caches.keys());
-    if (!names.includes('rental-utility-v5')) throw new Error('caches: ' + JSON.stringify(names));
+    if (!names.includes(CURRENT)) throw new Error('caches: ' + JSON.stringify(names));
   });
 
   await step('no update prompt when nothing has shipped', async () => {
@@ -30,7 +33,7 @@ try {
   });
 
   await step('shipping a new version raises the prompt', async () => {
-    fs.writeFileSync(SW, original.replace('rental-utility-v5', 'rental-utility-v6'));
+    fs.writeFileSync(SW, original.replace(CURRENT, NEXT));
     await page.evaluate(async () => (await navigator.serviceWorker.getRegistration()).update());
     await page.waitForSelector('.toast.tappable.show', { timeout: 15000 });
     const label = await page.textContent('.toast.tappable');
@@ -39,7 +42,7 @@ try {
 
   await step('the old version is still running until tapped', async () => {
     const names = await page.evaluate(() => caches.keys());
-    if (!names.includes('rental-utility-v5')) throw new Error('old cache dropped early');
+    if (!names.includes(CURRENT)) throw new Error('old cache dropped early');
   });
 
   await step('tapping it applies the update and reloads', async () => {
@@ -47,10 +50,10 @@ try {
       page.waitForNavigation({ waitUntil: 'networkidle', timeout: 20000 }),
       page.click('.toast.tappable')
     ]);
-    await page.waitForFunction(async () => (await caches.keys()).includes('rental-utility-v6'),
-      null, { timeout: 15000 });
-    await page.waitForFunction(async () => !(await caches.keys()).includes('rental-utility-v5'),
-      null, { timeout: 15000 });
+    await page.waitForFunction(async name => (await caches.keys()).includes(name),
+      NEXT, { timeout: 15000 });
+    await page.waitForFunction(async name => !(await caches.keys()).includes(name),
+      CURRENT, { timeout: 15000 });
   });
 
   await step('the prompt is gone afterwards', async () => {

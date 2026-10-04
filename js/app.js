@@ -135,7 +135,7 @@ function viewUnits() {
     </div>`;
 
   return {
-    title: s.propertyName || t('units.title'),
+    title: t('units.title'),
     sub: list.length ? t('units.sub', { n: list.length, s: plural(list.length), month: monthLabel(now) }) : '',
     actions: list.length ? `<a class="icon-btn" href="#/unit/new" aria-label="${esc(t('units.add'))}">${ICON.plus}</a>` : '',
     body: banners.join('') + body
@@ -523,12 +523,6 @@ function viewSettings() {
           </select>
         </div>
 
-        <h2>${esc(t('set.property'))}</h2>
-        <div class="field"><label for="s-prop">${esc(t('set.propertyName'))}</label>
-          <input id="s-prop" name="propertyName" placeholder="${esc(t('set.propertyNamePh'))}" value="${esc(s.propertyName)}"></div>
-        <div class="field"><label for="s-land">${esc(t('set.yourName'))}</label>
-          <input id="s-land" name="landlordName" placeholder="${esc(t('set.yourNamePh'))}" value="${esc(s.landlordName)}"></div>
-
         <h2>${esc(t('set.rates'))}</h2>
         <div class="two">
           <div class="field"><label for="s-er">${esc(t('set.elecRate'))}</label>
@@ -591,8 +585,6 @@ function viewSettings() {
         Object.assign(State.data.settings, {
           lang: f.get('lang'),
           decimals: Number(f.get('decimals')) === 0 ? 0 : 2,
-          propertyName: f.get('propertyName').trim(),
-          landlordName: f.get('landlordName').trim(),
           elecRate: Number(f.get('elecRate')) || 0,
           waterRate: Number(f.get('waterRate')) || 0,
           elecUnit: f.get('elecUnit').trim() || 'kWh',

@@ -73,9 +73,9 @@ home-screen app's data. Keep backups (see below).
 
 ### 3. First run
 
-Open **Settings** and fill in the language, property name, the electricity and
-water rates, the currency symbol, the due day, and a footer note for the invoice
-(bank details and so on). Then add units from the **Units** tab.
+Open **Settings** and fill in the language, the electricity and water rates, the
+currency symbol, the due day, and a footer note for the invoice (bank details and
+so on). Then add units from the **Units** tab.
 
 On a phone set to Vietnamese the app starts in Vietnamese with VND conventions —
 the `₫` symbol after the amount and no decimal places. All of that is editable.

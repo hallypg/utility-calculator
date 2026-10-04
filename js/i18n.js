@@ -94,7 +94,6 @@ const STRINGS = {
     'invoice.copied': 'Copied',
     'invoice.copyPrompt': 'Copy the invoice text:',
 
-    'inv.heading': 'INVOICE',
     'inv.billedTo': 'BILLED TO',
     'inv.issued': 'ISSUED',
     'inv.due': 'DUE',
@@ -106,7 +105,6 @@ const STRINGS = {
     'inv.adjustment': 'Adjustment',
     'inv.totalDue': 'Total due',
     'inv.totalDueCaps': 'TOTAL DUE',
-    'inv.fallbackTitle': 'Rental Statement',
 
     'history.title': 'History',
     'history.sub': '{n} bill{s}',
@@ -118,11 +116,6 @@ const STRINGS = {
 
     'set.title': 'Settings',
     'set.language': 'Language',
-    'set.property': 'Property',
-    'set.propertyName': 'Property name',
-    'set.propertyNamePh': 'Shown on invoices',
-    'set.yourName': 'Your name',
-    'set.yourNamePh': 'Shown at the foot of invoices',
     'set.rates': 'Rates',
     'set.elecRate': 'Electricity rate',
     'set.waterRate': 'Water rate',
@@ -265,7 +258,6 @@ const STRINGS = {
     'invoice.copied': 'Đã sao chép',
     'invoice.copyPrompt': 'Sao chép nội dung hóa đơn:',
 
-    'inv.heading': 'HÓA ĐƠN',
     'inv.billedTo': 'NGƯỜI THANH TOÁN',
     'inv.issued': 'NGÀY LẬP',
     'inv.due': 'HẠN',
@@ -277,7 +269,6 @@ const STRINGS = {
     'inv.adjustment': 'Điều chỉnh',
     'inv.totalDue': 'Tổng phải trả',
     'inv.totalDueCaps': 'TỔNG PHẢI TRẢ',
-    'inv.fallbackTitle': 'Phiếu thu tiền nhà',
 
     'history.title': 'Lịch sử',
     'history.sub': '{n} hóa đơn',
@@ -289,11 +280,6 @@ const STRINGS = {
 
     'set.title': 'Cài đặt',
     'set.language': 'Ngôn ngữ',
-    'set.property': 'Thông tin nhà',
-    'set.propertyName': 'Tên nhà / khu trọ',
-    'set.propertyNamePh': 'Hiển thị trên hóa đơn',
-    'set.yourName': 'Tên của bạn',
-    'set.yourNamePh': 'Hiển thị cuối hóa đơn',
     'set.rates': 'Đơn giá',
     'set.elecRate': 'Giá điện',
     'set.waterRate': 'Giá nước',
