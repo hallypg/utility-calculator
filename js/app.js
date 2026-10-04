@@ -290,7 +290,6 @@ function viewUnit(id) {
   const now = monthKey();
   const bills = billsFor(u.id);
   const s = State.data.settings;
-  const thisMonth = billForMonth(u.id, now);
 
   const history = bills.length ? bills.map(b => {
     const c = compute(b);
@@ -338,17 +337,19 @@ function viewUnit(id) {
 
       <div class="eyebrow">${esc(t('unit.billHistory'))}</div>
       <div class="stack">${history}</div>`,
-    actionbar: `<a class="btn primary block" href="#/bill/${u.id}/${thisMonth ? thisMonth.month : now}">
-      ${ICON.plus} ${esc(thisMonth ? t('unit.editBill', { month: monthShort(now) }) : t('unit.newBill', { month: monthShort(now) }))}
+    actionbar: `<a class="btn primary block" href="#/bill/${u.id}/new">
+      ${ICON.plus} ${esc(t('unit.newBill', { month: monthShort(now) }))}
     </a>`
   };
 }
 
-function viewBill(unitId, month) {
+function viewBill(unitId, month, forceNew) {
   const u = findUnit(unitId);
   if (!u) return notFound();
 
-  const existing = billForMonth(unitId, month);
+  // forceNew keeps the form blank even when that month already has a bill;
+  // saving onto an occupied month still asks before replacing it.
+  const existing = forceNew ? null : billForMonth(unitId, month);
   const open = openingReadings(unitId, month);
   const s = State.data.settings;
 
@@ -969,6 +970,7 @@ const ROUTES = [
   [/^\/unit\/new$/, () => viewUnitForm('new')],
   [/^\/unit\/([^/]+)\/edit$/, id => viewUnitForm(id)],
   [/^\/unit\/([^/]+)$/, id => viewUnit(id)],
+  [/^\/bill\/([^/]+)\/new$/, unitId => viewBill(unitId, monthKey(), true)],
   [/^\/bill\/([^/]+)\/([^/]+)$/, (unitId, month) => viewBill(unitId, month)],
   [/^\/invoice\/([^/]+)$/, id => viewInvoice(id)],
   [/^\/history$/, viewHistory],

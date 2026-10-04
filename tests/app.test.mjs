@@ -135,6 +135,30 @@ await step('marking paid flows through to the units screen', async () => {
   if (back !== false) throw new Error('could not mark unpaid again');
 });
 
+await step('the unit CTA always offers a new bill', async () => {
+  const unitId = await page.evaluate(async () =>
+    (await import('./js/store.js')).State.data.bills[0].unitId);
+  await page.goto(BASE + '/index.html#/unit/' + unitId);
+  await page.waitForSelector('#actionbar a.btn.primary');
+
+  const label = (await page.textContent('#actionbar a.btn.primary')).trim();
+  if (/edit/i.test(label)) throw new Error('CTA offers editing: ' + label);
+  if (!/new bill/i.test(label)) throw new Error('unexpected CTA: ' + label);
+
+  // Even though this month already has a bill, the CTA opens a blank form.
+  await page.click('#actionbar a.btn.primary');
+  await page.waitForSelector('#b-elecCurr');
+  if (!/New bill/.test(await page.textContent('#topbar')))
+    throw new Error('opened the existing bill instead of a new one');
+  if (await page.inputValue('#b-elecCurr') !== '')
+    throw new Error('blank form was prefilled from the existing bill');
+
+  // The existing bill is still reachable from its card.
+  await page.goto(BASE + '/index.html#/unit/' + unitId);
+  await page.click('.card.tap[href^="#/invoice/"]');
+  await page.waitForSelector('.invoice-card');
+});
+
 await step('invoice text copy is well formed', async () => {
   const txt = await page.evaluate(async () => {
     const mod = await import('./js/invoice.js');
