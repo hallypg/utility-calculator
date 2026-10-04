@@ -3,7 +3,7 @@ import {
   activeUnits, findUnit, addUnit, rentOf,
   billsFor, findBill, billForMonth, openingReadings, saveBill, deleteBill,
   compute, money, num, dueDate, fmtDate, monthNames, invoiceNumber,
-  summary, owedFor, togglePaid
+  summary, owedFor, togglePaid, nextBillMonth
 } from './store.js';
 import { renderInvoice, invoiceFilename, shareInvoice, invoiceText } from './invoice.js';
 import { t, setLang, getLang, detectLang, plural, LANGUAGES } from './i18n.js';
@@ -338,7 +338,7 @@ function viewUnit(id) {
       <div class="eyebrow">${esc(t('unit.billHistory'))}</div>
       <div class="stack">${history}</div>`,
     actionbar: `<a class="btn primary block" href="#/bill/${u.id}/new">
-      ${ICON.plus} ${esc(t('unit.newBill', { month: monthShort(now) }))}
+      ${ICON.plus} ${esc(t('unit.newBill'))}
     </a>`
   };
 }
@@ -970,7 +970,7 @@ const ROUTES = [
   [/^\/unit\/new$/, () => viewUnitForm('new')],
   [/^\/unit\/([^/]+)\/edit$/, id => viewUnitForm(id)],
   [/^\/unit\/([^/]+)$/, id => viewUnit(id)],
-  [/^\/bill\/([^/]+)\/new$/, unitId => viewBill(unitId, monthKey(), true)],
+  [/^\/bill\/([^/]+)\/new$/, unitId => viewBill(unitId, nextBillMonth(unitId), true)],
   [/^\/bill\/([^/]+)\/([^/]+)$/, (unitId, month) => viewBill(unitId, month)],
   [/^\/invoice\/([^/]+)$/, id => viewInvoice(id)],
   [/^\/history$/, viewHistory],
