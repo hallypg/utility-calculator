@@ -158,6 +158,14 @@ await step('save bill then the invoice screen renders', async () => {
   if (!(await page.locator('#mark-paid').count())) throw new Error('no mark-paid button');
 });
 
+await step('the invoice edit control is a labelled button', async () => {
+  const edit = page.locator(`#topbar a[href^="#/bill/"]`);
+  if (!(await edit.count())) throw new Error('no edit control in the invoice top bar');
+  if ((await edit.textContent()).trim() !== 'Edit')
+    throw new Error('edit control reads "' + (await edit.textContent()).trim() + '"');
+  if (await edit.locator('svg').count()) throw new Error('edit control is still an icon');
+});
+
 await step('the sendable image still renders', async () => {
   const src = await page.evaluate(async () => {
     const inv = await import('./js/invoice.js');

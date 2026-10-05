@@ -539,7 +539,7 @@ function viewInvoice(billId) {
     sub: `${u.label} · ${monthShort(bill.month)}`,
     back: `#/unit/${bill.unitId}`,
     bar: true,
-    actions: `<a class="icon-btn" href="#/bill/${bill.unitId}/${bill.month}" aria-label="${esc(t('invoice.editBill'))}">${ICON.edit}</a>`,
+    actions: `<a class="btn sm" href="#/bill/${bill.unitId}/${bill.month}">${esc(t('invoice.edit'))}</a>`,
     body: `
       <div class="card invoice-card">
         <div class="invoice-head">
