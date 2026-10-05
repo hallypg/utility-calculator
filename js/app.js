@@ -139,9 +139,7 @@ function viewHome() {
       <div class="tiny">${esc(t('units.owing'))}</div>
       <div class="row between" style="align-items:baseline;margin-top:2px">
         <span class="home-amount">${esc(money(owedTotal))}</span>
-        <span class="muted">${esc(owed.length
-          ? t('home.invoices', { n: owed.length, s: plural(owed.length) })
-          : t('units.allPaid'))}</span>
+        ${owed.length ? '' : `<span class="muted">${esc(t('units.allPaid'))}</span>`}
       </div>
       ${owed.length ? `<div class="inv-list">${owed.map(x => `
         <div class="inv-row inv-grid">

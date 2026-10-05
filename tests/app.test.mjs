@@ -682,6 +682,11 @@ await step('home leads with what is owed and what still needs a bill', async () 
   const rows = await page.$$eval('#app .inv-row', els => els.length);
   if (rows !== 3) throw new Error(rows + ' rows, expected two invoices and one unit to bill');
 
+  // The list is the count; spelling it out beside the total was noise.
+  const headline = (await page.textContent('#app .card')).replace(/\s+/g, ' ');
+  if (/\d+ invoices?/.test(headline))
+    throw new Error('the invoice count is still beside the total: ' + headline.slice(0, 80));
+
   // The pill separates late from merely due; both carry a day and month,
   // never a four-digit year, which would squeeze the heading off its line.
   const pills = await page.$$eval('#app .inv-row .pill', els =>

@@ -415,7 +415,7 @@ main.has-bar { padding-bottom: calc(176px + env(safe-area-inset-bottom)); }
 
 /* Home */
 .home-amount {
-  font-size: 34px; font-weight: 800; letter-spacing: -.02em;
+  font-size: 26px; font-weight: 800; letter-spacing: -.02em;
   font-variant-numeric: tabular-nums;
 }
 .inv-list {

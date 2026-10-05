@@ -89,7 +89,6 @@ const STRINGS = {
 
     'tab.home': 'Home',
     'home.title': 'Home',
-    'home.invoices': '{n} invoice{s}',
     'home.overdue': 'Overdue · due {date}',
     'home.due': 'Due {date}',
     'home.markPaid': 'Mark paid',
@@ -310,7 +309,6 @@ const STRINGS = {
 
     'tab.home': 'Trang chính',
     'home.title': 'Trang chính',
-    'home.invoices': '{n} hóa đơn',
     'home.overdue': 'Quá hạn · hạn {date}',
     'home.due': 'Hạn {date}',
     'home.markPaid': 'Đánh dấu đã trả',
