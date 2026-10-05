@@ -1041,9 +1041,12 @@ render();
 
 /* A home-screen app has no reload button, so it has to offer the update itself.
    The new worker sits in "waiting" until the person taps. */
+/* Set while a check the person asked for is in flight, so its result reloads
+   straight away instead of asking them to confirm what they just requested. */
+let manualCheck = false;
+
 /* Asks the server whether a newer build exists. When one does, the worker
-   installs it and controllerchange raises the usual prompt, so this only has
-   to report the "nothing new" case itself. */
+   installs it and controllerchange takes over from here. */
 async function checkForUpdates(btn) {
   const label = btn.textContent;
   btn.disabled = true;
@@ -1066,18 +1069,31 @@ async function checkForUpdates(btn) {
     const reg = await navigator.serviceWorker.getRegistration();
     if (!reg) { location.reload(); return; }
 
+    // The browser may answer an update check from its HTTP cache, which hosts
+    // like GitHub Pages let it hold for minutes. Refetching the worker first
+    // means the check sees what the server actually has, not a stale copy.
+    await fetch('./sw.js', { cache: 'reload' }).catch(() => {});
+
     let found = false;
     const onFound = () => { found = true; };
     reg.addEventListener('updatefound', onFound);
+
+    manualCheck = true;
     await reg.update();
 
     // Installing is asynchronous; give it a moment before calling it current.
-    await new Promise(r => setTimeout(r, 1500));
+    await new Promise(r => setTimeout(r, 2000));
     reg.removeEventListener('updatefound', onFound);
 
-    // When one was found, the update prompt is already on screen.
-    done(found ? '' : t('set.upToDate'));
+    if (found) {
+      // The reload happens from controllerchange once the new worker is in
+      // charge; leave the button in its working state until it does.
+      return;
+    }
+    manualCheck = false;
+    done(t('set.upToDate'));
   } catch (err) {
+    manualCheck = false;
     console.warn('update check failed', err);
     done(t('set.checkFailed'));
   }
@@ -1089,8 +1105,9 @@ if ('serviceWorker' in navigator) {
   let hadController = !!navigator.serviceWorker.controller;
 
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    // The new files are already in place; the page keeps running the old ones
-    // until the person chooses to reload, so nothing changes mid-edit.
+    // A check they asked for reloads itself; anything else waits to be told,
+    // so an update never interrupts what someone was in the middle of.
+    if (manualCheck) { location.reload(); return; }
     if (hadController) updateToast(() => location.reload());
     hadController = true;
   });
@@ -1098,7 +1115,7 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
     let reg;
     try {
-      reg = await navigator.serviceWorker.register('./sw.js');
+      reg = await navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' });
     } catch (err) {
       console.warn('SW failed', err);
       return;

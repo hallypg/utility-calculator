@@ -51,16 +51,22 @@ try {
       CURRENT, { timeout: 15000 });
   });
 
-  await step('the Settings button finds a shipped update', async () => {
-    // Undo the swap, so the next check has something new to find again.
+  await step('the Settings button applies an update without a second tap', async () => {
+    // Back to the current worker, so the next check has something new to find.
     fs.writeFileSync(SW, original);
     await page.goto(BASE + '/index.html#/settings', { waitUntil: 'networkidle' });
     await page.reload({ waitUntil: 'networkidle' });
     await page.waitForSelector('#check-updates');
+    await page.evaluate(() => { window.__stillHere = true; });
 
-    fs.writeFileSync(SW, original.replace(CURRENT, NEXT + '-again'));
+    const AGAIN = NEXT + '-again';
+    fs.writeFileSync(SW, original.replace(CURRENT, AGAIN));
     await page.click('#check-updates');
-    await page.waitForSelector('.toast.tappable.show', { timeout: 20000 });
+
+    // A check the person asked for reloads itself rather than prompting.
+    await page.waitForFunction(() => window.__stillHere === undefined, null, { timeout: 25000 });
+    await page.waitForFunction(async name => (await caches.keys()).includes(name),
+      AGAIN, { timeout: 15000 });
 
     // Put the worker back where the remaining steps expect it.
     fs.writeFileSync(SW, original.replace(CURRENT, NEXT));
