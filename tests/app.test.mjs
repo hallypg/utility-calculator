@@ -201,6 +201,30 @@ await step('marking paid flows through to the units screen', async () => {
   if (back !== false) throw new Error('could not mark unpaid again');
 });
 
+await step('editing a bill shows Delete beside Save in the bar', async () => {
+  const bill = await page.evaluate(async () =>
+    (await import('./js/store.js')).State.data.bills[0]);
+  await page.goto(BASE + '/index.html#/bill/' + bill.unitId + '/' + bill.month);
+  await page.waitForSelector('#b-elecCurr');
+
+  const del = page.locator('#actionbar #del-bill');
+  const save = page.locator('#actionbar button[type="submit"]');
+  if (!(await del.count())) throw new Error('Delete is not in the action bar');
+  if (await page.locator('#app #del-bill').count())
+    throw new Error('Delete is still in the page body');
+
+  // Delete sits to the left of Save.
+  const [dx, sx] = [await del.boundingBox(), await save.boundingBox()];
+  if (!(dx.x < sx.x)) throw new Error(`Delete at ${dx.x} is not left of Save at ${sx.x}`);
+  if (Math.abs(dx.y - sx.y) > 2) throw new Error('the two buttons are not on one row');
+
+  // A new bill has nothing to delete.
+  await page.goto(BASE + '/index.html#/bill/' + bill.unitId + '/new');
+  await page.waitForSelector('#b-elecCurr');
+  if (await page.locator('#del-bill').count())
+    throw new Error('Delete shown while creating a bill');
+});
+
 await step('the unit CTA always offers a new bill', async () => {
   const unitId = await page.evaluate(async () =>
     (await import('./js/store.js')).State.data.bills[0].unitId);

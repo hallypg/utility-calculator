@@ -424,14 +424,18 @@ function viewBill(unitId, month, forceNew) {
             <input id="b-rent" name="rent" type="number" inputmode="decimal" step="any" min="0" required value="${esc(money0(b.rent))}">
           </div>
         </div>
-      </form>
-      ${existing ? `<button class="btn danger block" id="del-bill">${esc(t('bill.delete'))}</button>` : ''}`,
+      </form>`,
     actionbar: `
       <div class="totals">
         <span class="lbl">${esc(t('bill.totalFor', { month: monthShort(month) }))}</span>
         <span class="val" id="bill-total">—</span>
       </div>
-      <button class="btn primary block" type="submit" form="bill-form">${esc(existing ? t('bill.save') : t('bill.saveNew'))}</button>`,
+      ${existing
+        ? `<div class="two">
+             <button class="btn danger" id="del-bill">${esc(t('bill.delete'))}</button>
+             <button class="btn primary" type="submit" form="bill-form">${esc(t('bill.save'))}</button>
+           </div>`
+        : `<button class="btn primary block" type="submit" form="bill-form">${esc(t('bill.saveNew'))}</button>`}`,
     mount() {
       const form = document.getElementById('bill-form');
       const read = () => ({ ...b, ...Object.fromEntries(new FormData(form)) });
