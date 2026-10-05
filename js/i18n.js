@@ -21,6 +21,8 @@ const STRINGS = {
     'units.paid': 'Paid up',
     'units.unpaid': 'Unpaid',
 
+    'unit.required': 'Required',
+    'unit.missing': 'Fill in the required fields',
     'unit.address': 'Address',
     'unit.addressPh': 'Street address',
     'unit.sectionUnit': 'Unit',
@@ -239,6 +241,8 @@ const STRINGS = {
     'units.paid': 'Đã trả',
     'units.unpaid': 'Chưa trả',
 
+    'unit.required': 'Bắt buộc',
+    'unit.missing': 'Hãy điền các trường bắt buộc',
     'unit.address': 'Địa chỉ',
     'unit.addressPh': 'Số nhà, tên đường',
     'unit.sectionUnit': 'Căn hộ',

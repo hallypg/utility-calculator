@@ -57,6 +57,37 @@ await step('add two units', async () => {
   await page.waitForSelector('text=Rent / month');
 });
 
+await step('the three required unit fields are marked and enforced', async () => {
+  await page.goto(BASE + '/index.html#/unit/new');
+  await page.waitForSelector('#f-label');
+
+  for (const id of ['#f-label', '#f-tenant', '#f-rent']) {
+    if (await page.locator(id).getAttribute('required') === null)
+      throw new Error(id + ' is not required');
+    const label = await page.textContent(`label[for="${id.slice(1)}"]`);
+    if (!label.includes('*')) throw new Error(id + ' label is not marked: ' + label.trim());
+  }
+  // Address is optional and must not be marked.
+  if ((await page.textContent('label[for="f-address"]')).includes('*'))
+    throw new Error('address is marked required');
+
+  // The rent label carries the currency.
+  const rentLabel = await page.textContent('label[for="f-rent"]');
+  if (!rentLabel.includes('RM')) throw new Error('rent label lacks the currency: ' + rentLabel.trim());
+
+  // Submitting with the tenant missing must not create anything.
+  const before = await page.evaluate(async () =>
+    (await import('./js/store.js')).State.data.units.length);
+  await page.fill('#f-label', 'ZZ');
+  await page.fill('#f-rent', '100');
+  await page.click('#actionbar button[type="submit"]');
+  await page.waitForTimeout(300);
+  const after = await page.evaluate(async () =>
+    (await import('./js/store.js')).State.data.units.length);
+  if (after !== before) throw new Error('saved a unit without a tenant name');
+  if (!page.url().includes('/unit/new')) throw new Error('navigated away from an incomplete form');
+});
+
 await step('rates prefill the new bill', async () => {
   await page.click('[data-tab="units"]');
   await page.click('text=A1');

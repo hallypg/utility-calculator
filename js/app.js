@@ -197,10 +197,11 @@ function viewUnitForm(id) {
     bar: true,
     body: `
       <form id="unit-form">
+        <p class="tiny" style="margin:0 0 12px 6px"><span class="req" aria-hidden="true">*</span> ${esc(t('unit.required'))}</p>
         <div class="card">
           <div class="eyebrow" style="margin:0 0 12px">${esc(t('unit.sectionUnit'))}</div>
           <div class="field">
-            <label for="f-label">${esc(t('unit.name'))}</label>
+            <label for="f-label">${esc(t('unit.name'))} <span class="req" aria-hidden="true">*</span></label>
             <input id="f-label" name="label" required placeholder="${esc(t('unit.namePh'))}" value="${esc(u?.label || '')}">
           </div>
           <div class="field" style="margin-bottom:0">
@@ -212,8 +213,8 @@ function viewUnitForm(id) {
         <div class="card">
           <div class="eyebrow" style="margin:0 0 12px">${esc(t('unit.sectionTenant'))}</div>
           <div class="field">
-            <label for="f-tenant">${esc(t('unit.tenant'))}</label>
-            <input id="f-tenant" name="tenantName" placeholder="${esc(t('unit.tenantPh'))}" value="${esc(u?.tenantName || '')}">
+            <label for="f-tenant">${esc(t('unit.tenant'))} <span class="req" aria-hidden="true">*</span></label>
+            <input id="f-tenant" name="tenantName" required placeholder="${esc(t('unit.tenantPh'))}" value="${esc(u?.tenantName || '')}">
           </div>
           <div class="field" style="margin-bottom:0">
             <label for="f-phone">${esc(t('unit.phone'))}</label>
@@ -224,8 +225,8 @@ function viewUnitForm(id) {
         <div class="card">
           <div class="eyebrow" style="margin:0 0 12px">${esc(t('unit.sectionRent'))}</div>
           <div class="field" style="margin-bottom:8px">
-            <label for="f-rent">${esc(t('unit.rent'))}</label>
-            <input id="f-rent" name="rent" type="number" inputmode="decimal" step="any" min="0" value="${esc(u ? (u.rent || '') : '')}">
+            <label for="f-rent">${esc(t('unit.rent'))} (${esc(s.currency)}) <span class="req" aria-hidden="true">*</span></label>
+            <input id="f-rent" name="rent" type="number" inputmode="decimal" step="any" min="0" required value="${esc(u ? (u.rent || '') : '')}">
           </div>
           <p class="tiny" style="margin:0">${esc(t('unit.rentNote'))}</p>
           <p class="tiny" style="margin:6px 0 0">${esc(t('unit.ratesFromSettings'))}</p>
@@ -253,7 +254,10 @@ function viewUnitForm(id) {
       document.getElementById('unit-form').addEventListener('submit', e => {
         e.preventDefault();
         const f = Object.fromEntries(new FormData(e.target));
-        if (!f.label.trim()) return;
+        if (!f.label.trim() || !f.tenantName.trim() || !String(f.rent).trim()) {
+          toast(t('unit.missing'));
+          return;
+        }
         if (u) {
           Object.assign(u, {
             label: f.label.trim(),
