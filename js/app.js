@@ -1046,12 +1046,9 @@ render();
 
 /* A home-screen app has no reload button, so it has to offer the update itself.
    The new worker sits in "waiting" until the person taps. */
-/* Set while a check the person asked for is in flight, so its result reloads
-   straight away instead of asking them to confirm what they just requested. */
-let manualCheck = false;
-
-/* Asks the server whether a newer build exists. When one does, the worker
-   installs it and controllerchange takes over from here. */
+/* Asks the server which version is published and compares it with the one
+   running. That answer cannot be fooled by a stale worker or a stale cache,
+   which is what made the earlier check report "latest" while it was not. */
 async function checkForUpdates(btn) {
   const label = btn.textContent;
   btn.disabled = true;
@@ -1063,45 +1060,38 @@ async function checkForUpdates(btn) {
     if (msg) toast(msg);
   };
 
-  // Without a service worker there is nothing cached to be stale; a reload
-  // fetches whatever the server has.
-  if (!('serviceWorker' in navigator)) {
-    location.reload();
+  let published;
+  try {
+    const res = await fetch(`./version.json?t=${Date.now()}`, { cache: 'no-store' });
+    published = (await res.json()).version;
+  } catch (err) {
+    console.warn('update check failed', err);
+    done(t('set.checkFailed'));
     return;
   }
 
-  try {
-    const reg = await navigator.serviceWorker.getRegistration();
-    if (!reg) { location.reload(); return; }
-
-    // The browser may answer an update check from its HTTP cache, which hosts
-    // like GitHub Pages let it hold for minutes. Refetching the worker first
-    // means the check sees what the server actually has, not a stale copy.
-    await fetch('./sw.js', { cache: 'reload' }).catch(() => {});
-
-    let found = false;
-    const onFound = () => { found = true; };
-    reg.addEventListener('updatefound', onFound);
-
-    manualCheck = true;
-    await reg.update();
-
-    // Installing is asynchronous; give it a moment before calling it current.
-    await new Promise(r => setTimeout(r, 2000));
-    reg.removeEventListener('updatefound', onFound);
-
-    if (found) {
-      // The reload happens from controllerchange once the new worker is in
-      // charge; leave the button in its working state until it does.
-      return;
-    }
-    manualCheck = false;
+  if (!published || published === APP_VERSION) {
     done(t('set.upToDate'));
-  } catch (err) {
-    manualCheck = false;
-    console.warn('update check failed', err);
-    done(t('set.checkFailed'));
+    return;
   }
+
+  // Something newer is published, so take it rather than asking a worker to
+  // notice. Dropping the caches and the registration leaves saved data alone;
+  // the reload fetches a clean copy and registers again.
+  btn.textContent = t('app.updating');
+  try {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.unregister()));
+    }
+    if (window.caches) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+  } catch (err) {
+    console.warn('could not clear the old version', err);
+  }
+  location.reload();
 }
 
 if ('serviceWorker' in navigator) {
@@ -1110,9 +1100,8 @@ if ('serviceWorker' in navigator) {
   let hadController = !!navigator.serviceWorker.controller;
 
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    // A check they asked for reloads itself; anything else waits to be told,
-    // so an update never interrupts what someone was in the middle of.
-    if (manualCheck) { location.reload(); return; }
+    // An update found on its own waits to be tapped, so it never interrupts
+    // what someone was in the middle of.
     if (hadController) updateToast(() => location.reload());
     hadController = true;
   });

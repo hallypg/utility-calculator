@@ -1,6 +1,6 @@
 /* Caches the app shell so it opens with no connection at all.
    Bump CACHE when any shell file changes. */
-const CACHE = 'rental-utility-v27';
+const CACHE = 'rental-utility-v28';
 
 const SHELL = [
   './',
@@ -23,7 +23,11 @@ self.addEventListener('install', event => {
   // never request the update, so it was served the old cache forever.
   event.waitUntil(
     caches.open(CACHE)
-      .then(cache => cache.addAll(SHELL))
+      // cache: 'reload' is essential. addAll fetches through the browser's
+      // HTTP cache by default, so a host that holds files for minutes — as
+      // GitHub Pages does — would fill this brand-new cache with the previous
+      // version's files. The cache name advances and nothing else does.
+      .then(cache => cache.addAll(SHELL.map(path => new Request(path, { cache: 'reload' }))))
       .then(() => self.skipWaiting())
   );
 });
@@ -43,6 +47,11 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const { request } = event;
   if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) return;
+
+  // These two decide whether an update exists, so they must always come from
+  // the network. Answering them from the cache would hide every update.
+  const path = new URL(request.url).pathname;
+  if (path.endsWith('/sw.js') || path.endsWith('/version.json')) return;
 
   // Navigations: serve the cached shell so a cold offline launch still works.
   if (request.mode === 'navigate') {

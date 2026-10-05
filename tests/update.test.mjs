@@ -5,6 +5,7 @@ import fs from 'node:fs';
 
 const BASE = 'http://127.0.0.1:8766';
 const SW = 'sw.js';
+const VERSION_FILE = 'version.json';
 const original = fs.readFileSync(SW, 'utf8');
 // Derived, not hardcoded, so bumping the cache in sw.js never breaks this test.
 const CURRENT = original.match(/const CACHE = '([^']+)'/)[1];
@@ -51,29 +52,6 @@ try {
       CURRENT, { timeout: 15000 });
   });
 
-  await step('the Settings button applies an update without a second tap', async () => {
-    // Back to the current worker, so the next check has something new to find.
-    fs.writeFileSync(SW, original);
-    await page.goto(BASE + '/index.html#/settings', { waitUntil: 'networkidle' });
-    await page.reload({ waitUntil: 'networkidle' });
-    await page.waitForSelector('#check-updates');
-    await page.evaluate(() => { window.__stillHere = true; });
-
-    const AGAIN = NEXT + '-again';
-    fs.writeFileSync(SW, original.replace(CURRENT, AGAIN));
-    await page.click('#check-updates');
-
-    // A check the person asked for reloads itself rather than prompting.
-    await page.waitForFunction(() => window.__stillHere === undefined, null, { timeout: 25000 });
-    await page.waitForFunction(async name => (await caches.keys()).includes(name),
-      AGAIN, { timeout: 15000 });
-
-    // Put the worker back where the remaining steps expect it.
-    fs.writeFileSync(SW, original.replace(CURRENT, NEXT));
-    await page.goto(BASE + '/index.html', { waitUntil: 'networkidle' });
-    await page.evaluate(() => { window.__notReloaded = true; });
-  });
-
   await step('the page is left alone until tapped', async () => {
     if (!(await page.evaluate(() => window.__notReloaded === true)))
       throw new Error('the page reloaded on its own');
@@ -97,6 +75,35 @@ try {
     const ok = await page.evaluate(() => !!localStorage.getItem('rmu.v1'));
     if (!ok) throw new Error('storage cleared by the update');
   });
+  await step('the Settings button applies a newly published version', async () => {
+    fs.writeFileSync(SW, original);
+    await page.goto(BASE + '/index.html#/settings', { waitUntil: 'networkidle' });
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForSelector('#check-updates');
+
+    // Publish a newer version, as a deploy would.
+    const pub = fs.readFileSync(VERSION_FILE, 'utf8');
+    fs.writeFileSync(VERSION_FILE, JSON.stringify({ version: 'v9999' }));
+    await page.evaluate(() => { window.__stillHere = true; });
+    await page.click('#check-updates');
+
+    // It reloads itself rather than reporting and waiting.
+    await page.waitForFunction(() => window.__stillHere === undefined, null, { timeout: 25000 });
+
+    fs.writeFileSync(VERSION_FILE, pub);
+  });
+
+  await step('it reports being current when nothing is published', async () => {
+    await page.goto(BASE + '/index.html#/settings', { waitUntil: 'networkidle' });
+    await page.waitForSelector('#check-updates');
+    await page.waitForFunction(() => !document.querySelector('.toast.show'),
+      null, { timeout: 8000 }).catch(() => {});
+    await page.click('#check-updates');
+    await page.waitForFunction(
+      () => /latest version/i.test(document.querySelector('.toast.show')?.textContent || ''),
+      null, { timeout: 15000 });
+  });
+
 } finally {
   fs.writeFileSync(SW, original);
   await browser.close();

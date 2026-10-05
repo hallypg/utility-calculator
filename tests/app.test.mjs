@@ -432,6 +432,15 @@ await step('checking for updates reports being current', async () => {
   await page.waitForFunction(
     () => /latest version/i.test(document.querySelector('.toast.show')?.textContent || ''),
     null, { timeout: 15000 });
+
+  // It must have asked the server, not a cached answer.
+  const asked = await page.evaluate(async () => {
+    const res = await fetch('./version.json?t=' + Date.now(), { cache: 'no-store' });
+    return (await res.json()).version;
+  });
+  const shown = await page.evaluate(async () =>
+    (await import('./js/store.js')).APP_VERSION);
+  if (asked !== shown) throw new Error(`published ${asked} but running ${shown}`);
   if (await page.locator('#check-updates').isDisabled())
     throw new Error('button left disabled after the check');
 });

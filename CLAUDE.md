@@ -54,6 +54,17 @@ visible there while every assertion passed.
 - **Storage is the only copy of a user's data.** Anything that changes the shape
   of saved data needs a migration in `State.migrate` / `migrateUnit`, not a
   version bump that discards it.
+- **Bump the version in three files together**: `CACHE` in `sw.js`,
+  `APP_VERSION` in `js/store.js`, and `version.json`. `tests/version.test.mjs`
+  fails if any drift. The Settings check compares `version.json` from the
+  network against `APP_VERSION`, which is the only comparison a stale cache
+  cannot fool.
+- **`cache.addAll` in the worker's install must use `new Request(path,
+  { cache: 'reload' })`.** Plain `addAll` fetches through the browser's HTTP
+  cache, so on a host that holds files for minutes — GitHub Pages holds them
+  ten — a new worker fills its brand-new cache with the *previous* version's
+  files. The cache name advances, the app does not, and no amount of checking
+  for updates helps.
 - **An update check can be answered from the browser's HTTP cache.** GitHub
   Pages serves `sw.js` with a ten-minute max-age, and a browser will happily
   answer `registration.update()` from that copy, reporting no update when one
