@@ -111,11 +111,12 @@ or tax purposes.
 ```
 electricity = (current reading − previous reading) × electricity rate
 water       = (current reading − previous reading) × water rate
-total       = rent + electricity + water + adjustment
+total       = rent + electricity + water
 ```
 
-An adjustment is an optional extra line — a repair charge, or a negative amount
-for a discount or credit.
+Bills saved by an earlier build may carry an adjustment line. It is still
+included in their total and shown on their invoice, so those figures do not
+change, but a new one cannot be entered.
 
 Each saved bill stores a snapshot of the rates and rent used at the time, so
 changing a rate in Settings, or a unit's rent, affects only future bills and

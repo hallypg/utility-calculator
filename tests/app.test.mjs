@@ -295,6 +295,24 @@ await step('address and starting readings seed the first bill', async () => {
   await page.waitForSelector('text=Ana Reyes');
 });
 
+await step('adjustments cannot be entered but old ones still count', async () => {
+  const unitId = await page.evaluate(async () =>
+    (await import('./js/store.js')).State.data.units[0].id);
+  await page.goto(BASE + '/index.html#/bill/' + unitId + '/new');
+  await page.waitForSelector('#b-elecCurr');
+  for (const id of ['#b-adj', '#b-adjn']) {
+    if (await page.locator(id).count()) throw new Error(id + ' is still on the bill form');
+  }
+
+  // A bill saved before the field was removed keeps its total.
+  const total = await page.evaluate(async () => {
+    const s = await import('./js/store.js');
+    return s.compute({ elecPrev: 0, elecCurr: 100, waterPrev: 0, waterCurr: 10,
+                       elecRate: 1, waterRate: 2, rent: 500, adjustment: -50 }).total;
+  });
+  if (total !== 570) throw new Error('legacy adjustment not honoured: ' + total);
+});
+
 await step('history and CSV', async () => {
   await page.click('[data-tab="history"]');
   await page.waitForSelector('text=Month total');

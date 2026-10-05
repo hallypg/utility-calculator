@@ -231,6 +231,8 @@ export function compute(bill) {
   const elecAmount = round2(elecUsed * (Number(bill.elecRate) || 0));
   const waterAmount = round2(waterUsed * (Number(bill.waterRate) || 0));
   const rent = round2(Number(bill.rent) || 0);
+  // Adjustments can no longer be entered, but one saved by an older build is
+  // still counted so its invoice total does not change retroactively.
   const adjustment = round2(Number(bill.adjustment) || 0);
   return {
     elecUsed, waterUsed, elecAmount, waterAmount, rent, adjustment,

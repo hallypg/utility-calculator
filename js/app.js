@@ -362,7 +362,6 @@ function viewBill(unitId, month, forceNew) {
     waterPrev: open.waterPrev, waterCurr: '',
     elecRate: s.elecRate, waterRate: s.waterRate,
     rent: rentOf(u),
-    adjustment: 0, adjustmentNote: '',
     issuedOn: new Date().toISOString().slice(0, 10)
   };
 
@@ -423,21 +422,6 @@ function viewBill(unitId, month, forceNew) {
             <label for="b-rent" style="font-size:16px;font-weight:800;color:var(--ink)">${esc(t('inv.rent'))}</label>
             <p class="tiny" style="margin:0 0 8px">${esc(t('bill.rentHint'))}</p>
             <input id="b-rent" name="rent" type="number" inputmode="decimal" step="any" min="0" required value="${esc(money0(b.rent))}">
-          </div>
-        </div>
-
-        <div class="card">
-          <div style="font-size:16px;font-weight:800">${esc(t('bill.adjustment'))}</div>
-          <p class="tiny" style="margin:2px 0 10px">${esc(t('bill.adjustNote'))}</p>
-          <div class="two">
-            <div class="field" style="margin-bottom:0">
-              <label for="b-adj">${esc(t('bill.amount'))}</label>
-              <input id="b-adj" name="adjustment" type="number" inputmode="decimal" step="any" placeholder="0" value="${b.adjustment ? esc(b.adjustment) : ''}">
-            </div>
-            <div class="field" style="margin-bottom:0">
-              <label for="b-adjn">${esc(t('bill.reason'))}</label>
-              <input id="b-adjn" name="adjustmentNote" placeholder="${esc(t('bill.reasonPh'))}" value="${esc(b.adjustmentNote || '')}">
-            </div>
           </div>
         </div>
       </form>
@@ -515,8 +499,6 @@ function viewBill(unitId, month, forceNew) {
           elecRate: Number(d.elecRate) || 0,
           waterRate: Number(d.waterRate) || 0,
           rent: Number(d.rent) || 0,
-          adjustment: Number(d.adjustment) || 0,
-          adjustmentNote: (d.adjustmentNote || '').trim(),
           paid: existing ? !!existing.paid : false
         });
         toast(t('bill.saved'));
