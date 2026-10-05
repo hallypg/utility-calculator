@@ -33,6 +33,8 @@ try {
   });
 
   await step('shipping a new version raises the prompt', async () => {
+    // A marker that only survives while this page is still the one loaded.
+    await page.evaluate(() => { window.__notReloaded = true; });
     fs.writeFileSync(SW, original.replace(CURRENT, NEXT));
     await page.evaluate(async () => (await navigator.serviceWorker.getRegistration()).update());
     await page.waitForSelector('.toast.tappable.show', { timeout: 15000 });
@@ -40,20 +42,27 @@ try {
     if (!/tap to update/i.test(label)) throw new Error('prompt reads "' + label + '"');
   });
 
-  await step('the old version is still running until tapped', async () => {
-    const names = await page.evaluate(() => caches.keys());
-    if (!names.includes(CURRENT)) throw new Error('old cache dropped early');
-  });
-
-  await step('tapping it applies the update and reloads', async () => {
-    await Promise.all([
-      page.waitForNavigation({ waitUntil: 'networkidle', timeout: 20000 }),
-      page.click('.toast.tappable')
-    ]);
+  await step('the new worker takes over without being asked', async () => {
+    // It must not need a message from the page: a page running older code
+    // cannot send one, and used to be stranded on the stale cache forever.
     await page.waitForFunction(async name => (await caches.keys()).includes(name),
       NEXT, { timeout: 15000 });
     await page.waitForFunction(async name => !(await caches.keys()).includes(name),
       CURRENT, { timeout: 15000 });
+  });
+
+  await step('the page is left alone until tapped', async () => {
+    if (!(await page.evaluate(() => window.__notReloaded === true)))
+      throw new Error('the page reloaded on its own');
+  });
+
+  await step('tapping it reloads onto the new version', async () => {
+    await Promise.all([
+      page.waitForNavigation({ waitUntil: 'networkidle', timeout: 20000 }),
+      page.click('.toast.tappable')
+    ]);
+    if (await page.evaluate(() => window.__notReloaded === true))
+      throw new Error('tapping did not reload');
   });
 
   await step('the prompt is gone afterwards', async () => {

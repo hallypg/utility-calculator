@@ -1032,11 +1032,15 @@ render();
 /* A home-screen app has no reload button, so it has to offer the update itself.
    The new worker sits in "waiting" until the person taps. */
 if ('serviceWorker' in navigator) {
-  let reloading = false;
+  // Tracks whether a worker was already in charge, so the very first install
+  // does not announce itself as an update while later ones do.
+  let hadController = !!navigator.serviceWorker.controller;
+
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (reloading) return;
-    reloading = true;
-    location.reload();
+    // The new files are already in place; the page keeps running the old ones
+    // until the person chooses to reload, so nothing changes mid-edit.
+    if (hadController) updateToast(() => location.reload());
+    hadController = true;
   });
 
   window.addEventListener('load', async () => {
@@ -1047,23 +1051,6 @@ if ('serviceWorker' in navigator) {
       console.warn('SW failed', err);
       return;
     }
-
-    const offer = worker => {
-      if (!worker) return;
-      updateToast(() => worker.postMessage({ type: 'SKIP_WAITING' }));
-    };
-
-    if (reg.waiting) offer(reg.waiting);
-
-    reg.addEventListener('updatefound', () => {
-      const installing = reg.installing;
-      if (!installing) return;
-      installing.addEventListener('statechange', () => {
-        // Only an update, not the very first install.
-        if (installing.state === 'installed' && navigator.serviceWorker.controller) offer(installing);
-      });
-    });
-
     // Check again whenever the app is brought back to the foreground.
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) reg.update().catch(() => {});

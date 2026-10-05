@@ -1,6 +1,6 @@
 /* Caches the app shell so it opens with no connection at all.
    Bump CACHE when any shell file changes. */
-const CACHE = 'rental-utility-v18';
+const CACHE = 'rental-utility-v19';
 
 const SHELL = [
   './',
@@ -18,9 +18,14 @@ const SHELL = [
 ];
 
 self.addEventListener('install', event => {
-  // No skipWaiting: the new worker waits until the page asks, so an update
-  // never swaps files out from under someone mid-edit.
-  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)));
+  // Take over as soon as the new files are cached. Waiting to be asked
+  // stranded anyone whose cached page predated the code that asks: it could
+  // never request the update, so it was served the old cache forever.
+  event.waitUntil(
+    caches.open(CACHE)
+      .then(cache => cache.addAll(SHELL))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener('message', event => {

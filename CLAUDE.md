@@ -54,5 +54,10 @@ visible there while every assertion passed.
 - **Storage is the only copy of a user's data.** Anything that changes the shape
   of saved data needs a migration in `State.migrate` / `migrateUnit`, not a
   version bump that discards it.
+- **The service worker must never wait to be asked to activate.** It once held
+  back until the page sent it a message, which stranded anyone whose cached
+  page predated the code that sends it: the page could not ask, so it was
+  served the stale cache on every reload, forever. It now calls `skipWaiting`
+  on install, and the page offers a reload afterwards instead.
 - Each saved bill snapshots the rent and rates it was created with. Changing a
   rate or a unit's rent must never alter a bill already issued.
