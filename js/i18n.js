@@ -7,6 +7,12 @@ export const LANGUAGES = [
 
 export const LOCALES = { en: 'en', vi: 'vi-VN' };
 
+/* Where a language writes a short month differently from the way Intl does.
+   Vietnamese reads 10/2026 rather than "thg 10, 2026". */
+export const SHORT_MONTH = {
+  vi: (y, m) => `${m}/${y}`
+};
+
 const STRINGS = {
   en: {
     'app.updateReady': 'New version available — tap to update',

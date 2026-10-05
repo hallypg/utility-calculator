@@ -138,6 +138,21 @@ await step('vi: screenshots', async () => {
   await vi.screenshot({ path: OUT + '/screen-bill-vi.png', fullPage: true });
 });
 
+await step('vi: short months read as 10/2026', async () => {
+  await vi.goto(BASE + '/index.html#/units');
+  await vi.waitForSelector('.summary');
+  const summary = await vi.textContent('.summary');
+  if (/thg/i.test(summary))
+    throw new Error('summary still uses the Intl short month: ' + summary.replace(/\s+/g, ' '));
+  if (!/\d{1,2}\/20\d\d/.test(summary))
+    throw new Error('summary has no month in m/yyyy form: ' + summary.replace(/\s+/g, ' '));
+
+  // The long form is untouched: "tháng 10 năm 2026" still reads naturally.
+  const header = await vi.textContent('#topbar');
+  if (!/tháng/i.test(header))
+    throw new Error('the long month form was changed too: ' + header.replace(/\s+/g, ' '));
+});
+
 await step('vi: switching to English keeps the data', async () => {
   await vi.goto(BASE + '/index.html#/settings');
   await vi.waitForSelector('[data-lang="en"]');

@@ -1,8 +1,8 @@
 /* Data layer: everything lives in this device's localStorage. No network, no accounts. */
 
-import { locale } from './i18n.js';
+import { locale, getLang, SHORT_MONTH } from './i18n.js';
 
-export const APP_VERSION = 'v32';
+export const APP_VERSION = 'v33';
 
 const STORAGE_KEY = 'rmu.v1';
 
@@ -114,6 +114,8 @@ export function monthLabel(key) {
 export function monthShort(key) {
   if (!key) return '';
   const [y, m] = key.split('-').map(Number);
+  const custom = SHORT_MONTH[getLang()];
+  if (custom) return custom(y, m);
   return new Date(y, m - 1, 1).toLocaleDateString(locale(), { month: 'short', year: 'numeric' });
 }
 
