@@ -34,7 +34,6 @@ const STRINGS = {
     'unit.startWater': 'Water ({unit})',
     'unit.rentPerMonth': 'Rent / month',
     'unit.newBill': 'New bill',
-    'unit.ratesFromSettings': 'Electricity and water rates come from Settings.',
 
     'bill.amount': 'Amount',
     'bill.lastMonth': 'Last month',
@@ -254,7 +253,6 @@ const STRINGS = {
     'unit.startWater': 'Nước ({unit})',
     'unit.rentPerMonth': 'Tiền thuê / tháng',
     'unit.newBill': 'Hóa đơn mới',
-    'unit.ratesFromSettings': 'Giá điện và nước lấy từ Cài đặt.',
 
     'bill.amount': 'Số tiền',
     'bill.lastMonth': 'Tháng trước',

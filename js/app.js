@@ -229,7 +229,6 @@ function viewUnitForm(id) {
             <input id="f-rent" name="rent" type="number" inputmode="decimal" step="any" min="0" required value="${esc(u ? (u.rent || '') : '')}">
           </div>
           <p class="tiny" style="margin:0">${esc(t('unit.rentNote'))}</p>
-          <p class="tiny" style="margin:6px 0 0">${esc(t('unit.ratesFromSettings'))}</p>
         </div>
 
         ${u ? '' : `
