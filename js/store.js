@@ -1,8 +1,8 @@
 /* Data layer: everything lives in this device's localStorage. No network, no accounts. */
 
-import { locale, getLang, SHORT_MONTH } from './i18n.js';
+import { locale, getLang, SHORT_MONTH, SHORT_DATE } from './i18n.js';
 
-export const APP_VERSION = 'v33';
+export const APP_VERSION = 'v34';
 
 const STORAGE_KEY = 'rmu.v1';
 
@@ -287,7 +287,11 @@ export const needsBill = (unitId, month) => !billForMonth(unitId, month);
 
 export const lastBilledMonth = unitId => billsFor(unitId)[0]?.month || null;
 
-export const fmtDate = d => d.toLocaleDateString(locale(), { day: 'numeric', month: 'short', year: 'numeric' });
+export function fmtDate(d) {
+  const custom = SHORT_DATE[getLang()];
+  if (custom) return custom(d);
+  return d.toLocaleDateString(locale(), { day: 'numeric', month: 'short', year: 'numeric' });
+}
 
 export const invoiceNumber = (unit, month) =>
   `${(unit.label || 'UNIT').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6) || 'UNIT'}-${month.replace('-', '')}`;

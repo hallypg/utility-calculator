@@ -7,10 +7,16 @@ export const LANGUAGES = [
 
 export const LOCALES = { en: 'en', vi: 'vi-VN' };
 
-/* Where a language writes a short month differently from the way Intl does.
-   Vietnamese reads 10/2026 rather than "thg 10, 2026". */
+/* Where a language writes a date differently from the way Intl does.
+   Vietnamese reads 10/2026 and 05/10/2026, not "thg 10, 2026". */
+const pad = n => String(n).padStart(2, '0');
+
 export const SHORT_MONTH = {
   vi: (y, m) => `${m}/${y}`
+};
+
+export const SHORT_DATE = {
+  vi: d => `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`
 };
 
 const STRINGS = {

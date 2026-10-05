@@ -153,6 +153,27 @@ await step('vi: short months read as 10/2026', async () => {
     throw new Error('the long month form was changed too: ' + header.replace(/\s+/g, ' '));
 });
 
+await step('vi: dates read as 05/10/2026, on screen and on the image', async () => {
+  const bill = await vi.evaluate(async () =>
+    (await import('./js/store.js')).State.data.bills[0]);
+  await vi.goto(BASE + '/index.html#/invoice/' + bill.id);
+  await vi.waitForSelector('.invoice-card');
+
+  const card = (await vi.textContent('.invoice-card')).replace(/\s+/g, ' ');
+  if (/thg/i.test(card)) throw new Error('the invoice screen still says thg: ' + card.slice(0, 200));
+  if (!/\d{2}\/\d{2}\/20\d\d/.test(card))
+    throw new Error('no dd/mm/yyyy date on the invoice: ' + card.slice(0, 200));
+
+  // The same must hold for the image that actually gets sent.
+  const text = await vi.evaluate(async () => {
+    const inv = await import('./js/invoice.js');
+    const st = await import('./js/store.js');
+    const b = st.State.data.bills[0];
+    return inv.invoiceText(b, st.findUnit(b.unitId));
+  });
+  if (/thg/i.test(text)) throw new Error('the sent invoice still says thg:\n' + text);
+});
+
 await step('vi: switching to English keeps the data', async () => {
   await vi.goto(BASE + '/index.html#/settings');
   await vi.waitForSelector('[data-lang="en"]');
