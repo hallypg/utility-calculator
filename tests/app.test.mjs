@@ -322,6 +322,36 @@ await step('editing a bill shows Delete beside Save in the bar', async () => {
     throw new Error('Delete shown while creating a bill');
 });
 
+await step('a history card names its utilities with icons and units', async () => {
+  const unitId = await page.evaluate(async () =>
+    (await import('./js/store.js')).State.data.bills[0].unitId);
+  await page.goto(BASE + '/index.html#/unit/' + unitId);
+  await page.waitForSelector('.breakdown');
+
+  const cells = await page.$$eval('.breakdown > span', els => els.map(e => ({
+    text: e.textContent.replace(/\s+/g, ' ').trim(),
+    icons: e.querySelectorAll('svg').length,
+    label: e.getAttribute('aria-label') || ''
+  })));
+  if (cells.length !== 3) throw new Error(cells.length + ' cells in the breakdown');
+
+  // Rent keeps its word; the two meters are named by their icon alone.
+  if (cells[0].icons) throw new Error('rent grew an icon');
+  if (!/^Rent/.test(cells[0].text)) throw new Error('rent cell reads: ' + cells[0].text);
+
+  for (const [i, unit] of [[1, 'kWh'], [2, 'm³']]) {
+    const c = cells[i];
+    if (c.icons !== 1) throw new Error(c.text + ' has ' + c.icons + ' icons');
+    if (/Electricity|Water/i.test(c.text))
+      throw new Error('the word is still beside the icon: ' + c.text);
+    // The reading carries its unit: "312 kWh", not a bare "312".
+    if (!new RegExp('^[\\d,.]+ ' + unit.replace('³', '\u00b3')).test(c.text))
+      throw new Error('no unit beside the reading: ' + c.text);
+    // An icon on its own says nothing to a screen reader.
+    if (!c.label) throw new Error('the icon cell has no accessible name: ' + c.text);
+  }
+});
+
 await step('the unit CTA always offers a new bill', async () => {
   const unitId = await page.evaluate(async () =>
     (await import('./js/store.js')).State.data.bills[0].unitId);

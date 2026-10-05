@@ -392,8 +392,8 @@ function viewUnit(id) {
           </div>
           <div class="breakdown">
             <span>${esc(t('inv.rent'))}<b>${esc(money(c.rent))}</b></span>
-            <span>${esc(t('inv.electricity'))} · ${esc(num(c.elecUsed))}<b>${esc(money(c.elecAmount))}</b></span>
-            <span>${esc(t('inv.water'))} · ${esc(num(c.waterUsed))}<b>${esc(money(c.waterAmount))}</b></span>
+            <span class="elec" aria-label="${esc(t('inv.electricity'))}">${ICON.bolt} ${esc(num(c.elecUsed))} ${esc(s.elecUnit)}<b>${esc(money(c.elecAmount))}</b></span>
+            <span class="water" aria-label="${esc(t('inv.water'))}">${ICON.drop} ${esc(num(c.waterUsed))} ${esc(s.waterUnit)}<b>${esc(money(c.waterAmount))}</b></span>
           </div>
         </div>
       </a>`;
