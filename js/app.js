@@ -449,11 +449,16 @@ function viewBill(unitId, month, forceNew) {
       const form = document.getElementById('bill-form');
       const read = () => ({ ...b, ...Object.fromEntries(new FormData(form)) });
 
+      // Errors stay out of the way until Save is pressed, then follow the
+      // fields live so they clear as soon as the reading is corrected.
+      let showErrors = false;
+      const entered = v => String(v ?? '').trim() !== '';
+
       const problems = d => {
         const out = [];
-        if (Number(d.elecCurr) < Number(d.elecPrev))
+        if (entered(d.elecCurr) && Number(d.elecCurr) < Number(d.elecPrev))
           out.push(['elec', t('bill.backwardsElec', { curr: num(d.elecCurr), prev: num(d.elecPrev) })]);
-        if (Number(d.waterCurr) < Number(d.waterPrev))
+        if (entered(d.waterCurr) && Number(d.waterCurr) < Number(d.waterPrev))
           out.push(['water', t('bill.backwardsWater', { curr: num(d.waterCurr), prev: num(d.waterPrev) })]);
         return out;
       };
@@ -469,7 +474,7 @@ function viewBill(unitId, month, forceNew) {
         document.getElementById('water-amt').textContent = money(c.waterAmount);
         document.getElementById('bill-total').textContent = money(c.total);
 
-        const errs = Object.fromEntries(problems(d));
+        const errs = showErrors ? Object.fromEntries(problems(d)) : {};
         for (const kind of ['elec', 'water']) {
           document.getElementById(`${kind}-err`).innerHTML = errs[kind]
             ? `<div class="field-err" style="margin:0 0 12px">${esc(errs[kind])}</div>` : '';
@@ -482,9 +487,13 @@ function viewBill(unitId, month, forceNew) {
       form.addEventListener('submit', e => {
         e.preventDefault();
         const d = read();
-        if (problems(d).length) {
+        const found = problems(d);
+        if (found.length) {
+          showErrors = true;
+          refresh();
           toast(t('bill.fixFirst'));
-          document.getElementById('elec-err').scrollIntoView({ behavior: 'smooth', block: 'center' });
+          document.getElementById(`${found[0][0]}-err`)
+            .scrollIntoView({ behavior: 'smooth', block: 'center' });
           return;
         }
         const clash = State.data.bills.find(x =>

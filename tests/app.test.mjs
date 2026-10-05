@@ -87,14 +87,31 @@ await step('live total is correct', async () => {
     document.querySelector('#bill-total')?.textContent.includes('1,408.14'));
 });
 
-await step('backwards reading is blocked', async () => {
-  await page.fill('#b-elecCurr', '4100');
-  await page.waitForSelector('#elec-err .field-err');
-  await page.click('#actionbar button[type="submit"]');
+await step('a fresh form shows no error before anything is typed', async () => {
+  const unitId = await page.evaluate(async () =>
+    (await import('./js/store.js')).State.data.units[0].id);
+  await page.goto(BASE + '/index.html#/bill/' + unitId + '/new');
+  await page.waitForSelector('#b-elecCurr');
   await page.waitForTimeout(250);
+  if (await page.locator('.field-err').count())
+    throw new Error('validation fired on an untouched form');
+  await page.goBack();
+  await page.waitForSelector('#b-elecCurr');
+});
+
+await step('backwards reading is reported on Save, not while typing', async () => {
+  await page.fill('#b-elecCurr', '4100');
+  await page.waitForTimeout(250);
+  if (await page.locator('#elec-err .field-err').count())
+    throw new Error('error shown before Save was pressed');
+
+  await page.click('#actionbar button[type="submit"]');
+  await page.waitForSelector('#elec-err .field-err');
   if (page.url().includes('/invoice/')) throw new Error('saved despite a backwards reading');
+
+  // Once reported, it tracks the field and clears when corrected.
   await page.fill('#b-elecCurr', '4512');
-  await page.waitForTimeout(100);
+  await page.waitForTimeout(150);
   if (await page.locator('#elec-err .field-err').count()) throw new Error('error did not clear');
 });
 
