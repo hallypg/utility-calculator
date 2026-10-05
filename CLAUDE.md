@@ -21,9 +21,12 @@ Both branches should point at the same commit when a change is finished.
 
 ## Before pushing
 
-**Bump `CACHE` in `sw.js`** (`rental-utility-vN` → `vN+1`) in the same commit as
-any change to `index.html`, `styles.css` or a file under `js/`. Without it the
-service worker keeps serving the cached copy and nobody sees the change.
+**Bump `CACHE` in `sw.js` and `APP_VERSION` in `js/store.js` together**
+(`vN` → `vN+1`) in the same commit as any change to `index.html`, `styles.css`
+or a file under `js/`. Without the cache bump the service worker keeps serving
+the cached copy and nobody sees the change; `tests/version.test.mjs` fails if
+the two drift apart. The version shows at the foot of Settings, which is how a
+user reports which build they are actually running.
 
 Run all four suites; they drive the real app in Chromium at phone size:
 
@@ -34,6 +37,7 @@ OUT_DIR=/tmp/out node tests/app.test.mjs
 OUT_DIR=/tmp/out node tests/backup.test.mjs
 OUT_DIR=/tmp/out node tests/i18n.test.mjs
 node tests/update.test.mjs
+node tests/version.test.mjs    # no server needed
 ```
 
 Read the screenshots they write to `OUT_DIR`. Two real bugs in this repo were

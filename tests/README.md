@@ -9,6 +9,7 @@ npx http-server -p 8765 -s .     # serve the app from the repo root
 OUT_DIR=/tmp/out node tests/app.test.mjs
 OUT_DIR=/tmp/out node tests/backup.test.mjs
 OUT_DIR=/tmp/out node tests/i18n.test.mjs
+node tests/version.test.mjs         # no browser or server needed
 
 npx http-server -p 8766 -s -c-1 .   # a second server, caching disabled
 node tests/update.test.mjs

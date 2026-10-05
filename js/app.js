@@ -3,7 +3,7 @@ import {
   activeUnits, findUnit, addUnit, rentOf,
   billsFor, findBill, billForMonth, openingReadings, saveBill, deleteBill,
   compute, money, num, dueDate, fmtDate, monthNames, invoiceNumber,
-  summary, owedFor, togglePaid
+  summary, owedFor, togglePaid, APP_VERSION
 } from './store.js';
 import { renderInvoice, invoiceFilename, shareInvoice, invoiceText } from './invoice.js';
 import { t, setLang, getLang, detectLang, plural, LANGUAGES } from './i18n.js';
@@ -800,7 +800,7 @@ function viewSettings() {
       <div class="card">
         <button class="btn danger block" id="wipe">${esc(t('set.wipe'))}</button>
       </div>
-      <p class="tiny" style="text-align:center;margin:18px 0 0">${esc(t('set.footer'))}</p>`,
+      <p class="tiny" style="text-align:center;margin:18px 0 0">${esc(t('set.footer'))} · ${esc(APP_VERSION)}</p>`,
     mount() {
       app.querySelectorAll('[data-lang]').forEach(btn =>
         btn.addEventListener('click', () => {

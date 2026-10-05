@@ -2,6 +2,8 @@
 
 import { locale } from './i18n.js';
 
+export const APP_VERSION = 'v18';
+
 const STORAGE_KEY = 'rmu.v1';
 
 const DEFAULT_SETTINGS = {
