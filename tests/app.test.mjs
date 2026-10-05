@@ -1,7 +1,9 @@
 import { chromium } from 'playwright';
+import fs from 'node:fs';
 
 const BASE = 'http://127.0.0.1:8765';
 const SHOT = process.env.OUT_DIR || '.';
+fs.mkdirSync(SHOT, { recursive: true });
 const errors = [];
 
 const browser = await chromium.launch();
@@ -220,7 +222,6 @@ await step('the sendable image still renders', async () => {
     return inv.renderInvoice(b, st.findUnit(b.unitId)).toDataURL('image/png');
   });
   if (!src.startsWith('data:image/png')) throw new Error('not a png');
-  const fs = await import('node:fs');
   fs.writeFileSync(SHOT + '/invoice.png', Buffer.from(src.split(',')[1], 'base64'));
 });
 
@@ -607,12 +608,130 @@ await step('no headings when every unit is on the same side', async () => {
   await page.reload({ waitUntil: 'networkidle' });
 });
 
-await step('the tab bar is units and settings only', async () => {
+await step('home leads with what is owed and what still needs a bill', async () => {
+  // One invoice past its due date, one not yet due, one unit with no bill.
+  await page.evaluate(async () => {
+    const s = await import('./js/store.js');
+    const d = s.State.data;
+    const month = s.billingMonth();
+    const day = n => {
+      const t = new Date();
+      t.setDate(t.getDate() + n);
+      return t.toISOString().slice(0, 10);
+    };
+    const bill = (id, unitId, issuedOn) => ({
+      id, unitId, month, issuedOn,
+      elecPrev: 0, elecCurr: 100, waterPrev: 0, waterCurr: 10,
+      elecRate: 1, waterRate: 1, rent: 100, paid: false
+    });
+    // dueDays is 15, so an invoice issued 40 days ago is overdue and
+    // one issued today is not.
+    d.bills = [bill('late', d.units[0].id, day(-40)), bill('soon', d.units[1].id, day(0))];
+    s.State.save();
+  });
+  await page.goto(BASE + '/index.html#/home');
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForSelector('.home-amount');
+
+  // Each bill is 100 rent + 100 electricity + 10 water.
+  const owed = (await page.textContent('.home-amount')).replace(/[^0-9.]/g, '');
+  if (owed !== '420.00') throw new Error('awaiting payment reads ' + owed);
+
+  const rows = await page.$$eval('#app .inv-row', els => els.length);
+  if (rows !== 3) throw new Error(rows + ' rows, expected two invoices and one unit to bill');
+
+  // The pill separates late from merely due; both carry a day and month,
+  // never a four-digit year, which would squeeze the heading off its line.
+  const pills = await page.$$eval('#app .inv-row .pill', els =>
+    els.map(e => [e.className, e.textContent.trim()]));
+  if (!pills.some(([c, txt]) => /unpaid/.test(c) && /Overdue/.test(txt)))
+    throw new Error('no overdue pill: ' + JSON.stringify(pills));
+  if (!pills.some(([c, txt]) => /neutral/.test(c) && /^Due /.test(txt)))
+    throw new Error('no due pill: ' + JSON.stringify(pills));
+  for (const [, txt] of pills) {
+    if (/\d{4}/.test(txt)) throw new Error('a pill spells out the year: ' + txt);
+  }
+
+  // The invoice heading has to fit on one line next to the amount.
+  const wrapped = await page.$$eval('#app .inv-link', els =>
+    els.filter(e => e.getBoundingClientRect().height > 30).map(e => e.textContent.trim()));
+  if (wrapped.length) throw new Error('invoice heading wraps: ' + JSON.stringify(wrapped));
+
+  const bills = await page.textContent('#app .card:last-of-type');
+  if (!/1 of 3 units/.test(bills.replace(/\s+/g, ' ')))
+    throw new Error('bills card does not count what is left: ' + bills.replace(/\s+/g, ' '));
+});
+
+await step('home marks an invoice paid without leaving the page', async () => {
+  await page.goto(BASE + '/index.html#/home');
+  await page.waitForSelector('[data-pay="late"]');
+  await page.click('[data-pay="late"]');
+  await page.waitForTimeout(250);
+
+  const paid = await page.evaluate(async () =>
+    (await import('./js/store.js')).State.data.bills.find(b => b.id === 'late').paid);
+  if (paid !== true) throw new Error('the bill was not marked paid');
+
+  if (!/\/home/.test(page.url())) throw new Error('left home: ' + page.url());
+  const owed = (await page.textContent('.home-amount')).replace(/[^0-9.]/g, '');
+  if (owed !== '210.00') throw new Error('total did not drop, it reads ' + owed);
+  if (await page.locator('[data-pay="late"]').count())
+    throw new Error('the paid invoice is still listed as awaiting payment');
+});
+
+await step('the bill run walks on to the next unit that needs one', async () => {
+  try {
+  await page.evaluate(async () => {
+    const s = await import('./js/store.js');
+    s.State.data.bills = [];
+    s.State.save();
+  });
+  await page.goto(BASE + '/index.html#/home');
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForSelector('#start-run');
+  if (!/3 units/.test(await page.textContent('#start-run')))
+    throw new Error('the run button does not say how many: ' + await page.textContent('#start-run'));
+
+  await page.click('#start-run');
+  await page.waitForSelector('#b-elecCurr');
+  const first = page.url().split('/bill/')[1].split('/')[0];
+
+  await page.fill('#b-elecPrev', '0');
+  await page.fill('#b-elecCurr', '50');
+  await page.fill('#b-waterPrev', '0');
+  await page.fill('#b-waterCurr', '5');
+  await page.click('#actionbar button[type="submit"]');
+  await page.waitForTimeout(500);
+
+  // Saving mid-run opens the next unit's form, not the invoice.
+  if (!/#\/bill\//.test(page.url()))
+    throw new Error('the run stopped after one bill: ' + page.url());
+  const second = page.url().split('/bill/')[1].split('/')[0];
+  if (second === first) throw new Error('the run reopened the same unit');
+
+  } finally {
+    // Put the real bills back even if an assertion above gave up, or every
+    // step after this one fails for the wrong reason.
+    await page.evaluate(raw => localStorage.setItem('rmu.v1', raw), savedBills);
+    await page.goto(BASE + '/index.html#/units');
+    await page.reload({ waitUntil: 'networkidle' });
+  }
+});
+
+await step('the tab bar is home, units and settings', async () => {
   await page.goto(BASE + '/index.html#/units');
   await page.waitForSelector('.tabbar');
   const tabs = await page.$$eval('.tabbar a', els => els.map(e => e.dataset.tab));
-  if (JSON.stringify(tabs) !== JSON.stringify(['units', 'settings']))
+  if (JSON.stringify(tabs) !== JSON.stringify(['home', 'units', 'settings']))
     throw new Error('tabs are ' + JSON.stringify(tabs));
+
+  // No hash at all opens home.
+  await page.goto(BASE + '/index.html');
+  await page.waitForTimeout(300);
+  if (!/#\/home$/.test(page.url())) throw new Error('bare address opened ' + page.url());
+  const active = await page.$$eval('.tabbar a.on', els => els.map(e => e.dataset.tab));
+  if (JSON.stringify(active) !== JSON.stringify(['home']))
+    throw new Error('active tab on home is ' + JSON.stringify(active));
 
   // The old address must not render a blank screen.
   await page.goto(BASE + '/index.html#/history');

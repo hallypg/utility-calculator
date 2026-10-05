@@ -2,7 +2,7 @@
   "name": "Rental Utility Calculator",
   "short_name": "Rentals",
   "description": "Track rent, electricity and water for rental units, and send tenants an invoice image.",
-  "start_url": "./index.html#/units",
+  "start_url": "./index.html#/home",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",

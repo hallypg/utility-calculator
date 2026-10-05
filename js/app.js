@@ -4,7 +4,7 @@ import {
   billsFor, findBill, billForMonth, openingReadings, saveBill, deleteBill,
   compute, money, num, dueDate, fmtDate, monthNames, invoiceNumber,
   summary, owedFor, togglePaid, APP_VERSION,
-  billingMonth, rentMonth, needsBill, lastBilledMonth
+  billingMonth, rentMonth, needsBill, lastBilledMonth, outstanding, awaitingBill, fmtDayMonth
 } from './store.js';
 import { renderInvoice, invoiceFilename, shareInvoice, invoiceText } from './invoice.js';
 import { t, setLang, getLang, detectLang, plural, LANGUAGES } from './i18n.js';
@@ -106,6 +106,98 @@ const nav = hash => { location.hash = hash; };
 const money0 = v => (v === 0 || v ? v : '');
 
 /* ================= views ================= */
+
+/* Set when a bill was started from the home screen's bulk button, so saving
+   one moves on to the next unit that still needs one. */
+let billRun = false;
+
+function viewHome() {
+  const month = billingMonth();
+  const owed = outstanding();
+  const waiting = awaitingBill(month);
+  const units = activeUnits();
+
+  billRun = false;
+
+  if (!units.length) {
+    return {
+      title: t('home.title'),
+      body: `
+        <div class="empty">
+          ${ICON.empty}
+          <p>${t('units.empty')}</p>
+          <a class="btn primary" href="#/unit/new">${ICON.plus} ${esc(t('units.addFirst'))}</a>
+        </div>`
+    };
+  }
+
+  const owedTotal = owed.reduce((sum, x) => sum + x.total, 0);
+
+  const owedCard = `
+    <div class="card">
+      <div class="tiny">${esc(t('units.owing'))}</div>
+      <div class="row between" style="align-items:baseline;margin-top:2px">
+        <span class="home-amount">${esc(money(owedTotal))}</span>
+        <span class="muted">${esc(owed.length
+          ? t('home.invoices', { n: owed.length, s: plural(owed.length) })
+          : t('units.allPaid'))}</span>
+      </div>
+      ${owed.length ? `<div class="inv-list">${owed.map(x => `
+        <div class="inv-row inv-grid">
+          <a class="inv-link truncate" href="#/invoice/${x.bill.id}">${esc(x.unit.label)} · ${esc(monthShort(x.bill.month))}</a>
+          <span class="amount">${esc(money(x.total))}</span>
+          <div class="inv-sub">
+            <span class="muted truncate">${esc(x.unit.tenantName || t('inv.tenant'))}</span>
+            <span class="pill ${x.overdue ? 'unpaid' : 'neutral'}">${esc(x.overdue
+            ? t('home.overdue', { date: fmtDayMonth(dueDate(x.bill)) })
+              : t('home.due', { date: fmtDayMonth(dueDate(x.bill)) }))}</span>
+          </div>
+          <button class="btn block ok" data-pay="${x.bill.id}">
+            ${ICON.check} ${esc(t('home.markPaid'))}
+          </button>
+        </div>`).join('')}</div>` : ''}
+    </div>`;
+
+  const billsCard = `
+    <div class="card">
+      <div style="font-size:17px;font-weight:800">${esc(t('home.billsTitle', { month: monthLabel(month) }))}</div>
+      <div class="muted" style="margin-top:2px">${esc(waiting.length
+        ? t('home.needBill', { n: waiting.length, total: units.length })
+        : t('units.allBilled', { month: monthLabel(month) }))}</div>
+      ${waiting.length ? `
+        <div class="inv-list">${waiting.map(u => `
+          <a class="inv-row row between" href="#/unit/${u.id}" style="text-decoration:none;color:inherit">
+            <span class="grow">
+              <span style="font-weight:700;display:block">${esc(u.label)}</span>
+              <span class="muted truncate" style="display:block">${esc(u.tenantName || t('inv.tenant'))}</span>
+            </span>
+            <span class="pill todo">${esc(t('home.notBilled'))}</span>
+          </a>`).join('')}</div>
+        <button class="btn primary block" id="start-run" style="margin-top:16px">
+          ${ICON.check} ${esc(t('home.createBills', { n: waiting.length, s: plural(waiting.length) }))}
+        </button>` : ''}
+    </div>`;
+
+  return {
+    title: t('home.title'),
+    body: owedCard + billsCard,
+    mount() {
+      app.querySelectorAll('[data-pay]').forEach(btn =>
+        btn.addEventListener('click', () => {
+          const bill = findBill(btn.dataset.pay);
+          if (!bill) return;
+          togglePaid(bill);
+          toast(t('invoice.markedPaid'));
+          render();
+        }));
+
+      document.getElementById('start-run')?.addEventListener('click', () => {
+        billRun = true;
+        nav(`#/bill/${waiting[0].id}/new`);
+      });
+    }
+  };
+}
 
 function viewUnits() {
   const list = activeUnits();
@@ -524,6 +616,10 @@ function viewBill(unitId, month, forceNew) {
         if (clash && !confirm(t('bill.confirmReplace', { month: monthLabel(d.month) }))) return;
         if (clash) deleteBill(clash.id);
 
+        const runNext = billRun
+          ? awaitingBill(d.month).find(x => x.id !== unitId)
+          : null;
+
         const id = saveBill({
           id: existing?.id,
           unitId,
@@ -538,6 +634,12 @@ function viewBill(unitId, month, forceNew) {
           rent: Number(d.rent) || 0,
           paid: existing ? !!existing.paid : false
         });
+        if (runNext) {
+          toast(t('home.next', { label: runNext.label }));
+          nav(`#/bill/${runNext.id}/new`);
+          return;
+        }
+        billRun = false;
         toast(t('bill.saved'));
         nav(`#/invoice/${id}`);
       });
@@ -951,6 +1053,7 @@ function exportCsv() {
 /* ================= router ================= */
 
 const ROUTES = [
+  [/^\/home$/, viewHome],
   [/^\/units?$/, viewUnits],
   [/^\/unit\/new$/, () => viewUnitForm('new')],
   [/^\/unit\/([^/]+)\/edit$/, id => viewUnitForm(id)],
@@ -962,7 +1065,9 @@ const ROUTES = [
 ];
 
 function currentTab(path) {
-  return path.startsWith('/settings') ? 'settings' : 'units';
+  if (path.startsWith('/settings')) return 'settings';
+  if (path.startsWith('/home')) return 'home';
+  return 'units';
 }
 
 function render() {
@@ -1017,7 +1122,7 @@ if (!State.data.settings.lang) {
 }
 applyLang(State.data.settings.lang);
 
-if (!location.hash) location.hash = '#/units';
+if (!location.hash) location.hash = '#/home';
 render();
 
 /* A home-screen app has no reload button, so it has to offer the update itself.

@@ -19,6 +19,10 @@ export const SHORT_DATE = {
   vi: d => `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`
 };
 
+export const DAY_MONTH = {
+  vi: d => `${pad(d.getDate())}/${pad(d.getMonth() + 1)}`
+};
+
 const STRINGS = {
   en: {
     'app.updateReady': 'New version available — tap to update',
@@ -85,6 +89,18 @@ const STRINGS = {
 
     'common.edit': 'Edit',
     'common.change': 'Change',
+
+    'tab.home': 'Home',
+    'home.title': 'Home',
+    'home.invoices': '{n} invoice{s}',
+    'home.overdue': 'Overdue · due {date}',
+    'home.due': 'Due {date}',
+    'home.markPaid': 'Mark paid',
+    'home.billsTitle': '{month} bills',
+    'home.needBill': '{n} of {total} units still need a bill',
+    'home.notBilled': 'Not billed',
+    'home.createBills': 'Create bills for {n} unit{s}',
+    'home.next': 'Saved · next up {label}',
 
     'tab.units': 'Units',
     'tab.settings': 'Settings',
@@ -300,6 +316,18 @@ const STRINGS = {
 
     'common.edit': 'Sửa',
     'common.change': 'Đổi',
+
+    'tab.home': 'Trang chính',
+    'home.title': 'Trang chính',
+    'home.invoices': '{n} hóa đơn',
+    'home.overdue': 'Quá hạn · hạn {date}',
+    'home.due': 'Hạn {date}',
+    'home.markPaid': 'Đánh dấu đã trả',
+    'home.billsTitle': 'Hóa đơn {month}',
+    'home.needBill': '{n}/{total} căn hộ chưa có hóa đơn',
+    'home.notBilled': 'Chưa lập',
+    'home.createBills': 'Lập hóa đơn cho {n} căn hộ',
+    'home.next': 'Đã lưu · tiếp theo {label}',
 
     'tab.units': 'Căn hộ',
     'tab.settings': 'Cài đặt',

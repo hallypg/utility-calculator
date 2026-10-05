@@ -31,7 +31,7 @@ await step('vi: auto-detected from the phone language', async () => {
 
 await step('vi: tab bar is translated', async () => {
   const labels = await vi.$$eval('.tab-label', els => els.map(e => e.textContent));
-  const want = ['Căn hộ', 'Cài đặt'];
+  const want = ['Trang chính', 'Căn hộ', 'Cài đặt'];
   if (JSON.stringify(labels) !== JSON.stringify(want))
     throw new Error('got ' + JSON.stringify(labels));
 });
@@ -190,7 +190,7 @@ await step('vi: switching to English keeps the data', async () => {
   await vi.goto(BASE + '/index.html#/units');
   await vi.waitForSelector('text=Nguyễn Thị Lan');
   const labels = await vi.$$eval('.tab-label', els => els.map(e => e.textContent));
-  if (labels[0] !== 'Units') throw new Error('did not switch: ' + JSON.stringify(labels));
+  if (labels[1] !== 'Units') throw new Error('did not switch: ' + JSON.stringify(labels));
   const bills = await vi.evaluate(() => JSON.parse(localStorage.getItem('rmu.v1')).bills.length);
   if (bills !== 1) throw new Error('data lost on language switch');
 });
@@ -198,7 +198,7 @@ await step('vi: switching to English keeps the data', async () => {
 await step('vi: the choice survives a reload', async () => {
   await vi.reload({ waitUntil: 'networkidle' });
   const labels = await vi.$$eval('.tab-label', els => els.map(e => e.textContent));
-  if (labels[0] !== 'Units') throw new Error('language not persisted: ' + JSON.stringify(labels));
+  if (labels[1] !== 'Units') throw new Error('language not persisted: ' + JSON.stringify(labels));
 });
 
 /* ---------- a phone set to English ---------- */

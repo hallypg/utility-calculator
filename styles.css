@@ -108,6 +108,11 @@ main {
 }
 
 .tabbar a.on { color: var(--brand); }
+/* Chromium paints a tinted box over a tab that was tapped; the colour is the
+   only state a tab needs. */
+.tabbar a { -webkit-tap-highlight-color: transparent; }
+.tabbar a:focus { outline: none; }
+.tabbar a:focus-visible { outline: 2px solid var(--brand); outline-offset: -3px; }
 .tabbar svg { display: block; margin: 0 auto 3px; width: 23px; height: 23px; }
 
 /* ---------- blocks ---------- */
@@ -369,6 +374,43 @@ main.has-bar { padding-bottom: calc(176px + env(safe-area-inset-bottom)); }
 .tile.sm svg { width: 19px; height: 19px; }
 
 .pill.unpaid { background: var(--danger-soft); color: var(--danger); }
+.pill.neutral { background: var(--surface-2); color: var(--muted); }
+
+/* Home */
+.home-amount {
+  font-size: 34px; font-weight: 800; letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums;
+}
+.inv-list {
+  margin-top: 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.inv-row { padding: 14px 15px; border-bottom: 1px solid var(--line); }
+.inv-row:last-child { border-bottom: 0; }
+.inv-link { font-size: 16px; font-weight: 700; color: inherit; text-decoration: none; }
+.inv-row .pill { white-space: nowrap; }
+
+/* Heading and amount share the first line, tenant and due pill the second,
+   so a long pill can never squeeze the heading into an ellipsis. */
+.inv-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  column-gap: 12px;
+  row-gap: 4px;
+}
+.inv-grid .inv-sub {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.inv-grid .btn { grid-column: 1 / -1; margin-top: 12px; }
+.btn.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 35%, var(--line)); }
+.btn.ok svg { width: 18px; height: 18px; }
 .owing { font-size: 13px; font-weight: 700; color: var(--danger); font-variant-numeric: tabular-nums; }
 
 /* Bill history rows */

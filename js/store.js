@@ -1,8 +1,8 @@
 /* Data layer: everything lives in this device's localStorage. No network, no accounts. */
 
-import { locale, getLang, SHORT_MONTH, SHORT_DATE } from './i18n.js';
+import { locale, getLang, SHORT_MONTH, SHORT_DATE, DAY_MONTH } from './i18n.js';
 
-export const APP_VERSION = 'v39';
+export const APP_VERSION = 'v40';
 
 const STORAGE_KEY = 'rmu.v1';
 
@@ -199,6 +199,24 @@ export function togglePaid(bill) {
 
 export const unpaidBills = () => State.data.bills.filter(b => !b.paid);
 
+/* Past its due date and still unpaid. */
+export function isOverdue(bill) {
+  if (bill.paid) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return dueDate(bill) < today;
+}
+
+/* Unpaid invoices, oldest first, with what the home screen needs to show. */
+export const outstanding = () =>
+  unpaidBills()
+    .map(b => ({ bill: b, unit: findUnit(b.unitId), total: compute(b).total, overdue: isOverdue(b) }))
+    .filter(x => x.unit)
+    .sort((a, b) => a.bill.month.localeCompare(b.bill.month));
+
+/* Active units with no bill for the month being billed, in list order. */
+export const awaitingBill = month => activeUnits().filter(u => needsBill(u.id, month));
+
 export const owedFor = unitId =>
   State.data.bills
     .filter(b => b.unitId === unitId && !b.paid)
@@ -275,6 +293,13 @@ export function dueDate(bill) {
   const out = new Date(y, m - 1, d);
   out.setDate(out.getDate() + days);
   return out;
+}
+
+/* Day and month only, for pills where the year is noise. */
+export function fmtDayMonth(d) {
+  const custom = DAY_MONTH[getLang()];
+  if (custom) return custom(d);
+  return d.toLocaleDateString(locale(), { day: 'numeric', month: 'short' });
 }
 
 /* The month whose usage is billed now: the one just gone. */
