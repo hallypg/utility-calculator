@@ -1,8 +1,8 @@
 /* Data layer: everything lives in this device's localStorage. No network, no accounts. */
 
-import { locale, getLang, SHORT_MONTH, SHORT_DATE, DAY_MONTH } from './i18n.js';
+import { locale, getLang, SHORT_MONTH, COMPACT_MONTH, SHORT_DATE, DAY_MONTH } from './i18n.js';
 
-export const APP_VERSION = 'v40';
+export const APP_VERSION = 'v41';
 
 const STORAGE_KEY = 'rmu.v1';
 
@@ -217,23 +217,6 @@ export const outstanding = () =>
 /* Active units with no bill for the month being billed, in list order. */
 export const awaitingBill = month => activeUnits().filter(u => needsBill(u.id, month));
 
-export const owedFor = unitId =>
-  State.data.bills
-    .filter(b => b.unitId === unitId && !b.paid)
-    .reduce((sum, b) => sum + compute(b).total, 0);
-
-export const unpaidCountFor = unitId =>
-  State.data.bills.filter(b => b.unitId === unitId && !b.paid).length;
-
-export function summary(month) {
-  const unpaid = unpaidBills();
-  return {
-    owed: round2(unpaid.reduce((sum, b) => sum + compute(b).total, 0)),
-    count: unpaid.length,
-    toBill: activeUnits().filter(u => needsBill(u.id, month)).length,
-    unitCount: activeUnits().length
-  };
-}
 
 export function saveBill(bill) {
   const existing = bill.id ? findBill(bill.id) : null;
@@ -295,6 +278,17 @@ export function dueDate(bill) {
   return out;
 }
 
+/* Just the month, abbreviated; the year appears only when it is not this
+   one, where leaving it off would be ambiguous rather than merely terse. */
+export function monthCompact(key) {
+  if (!key) return '';
+  const [y, m] = key.split('-').map(Number);
+  if (y !== new Date().getFullYear()) return monthShort(key);
+  const custom = COMPACT_MONTH[getLang()];
+  if (custom) return custom(y, m);
+  return new Date(y, m - 1, 1).toLocaleDateString(locale(), { month: 'short' });
+}
+
 /* Day and month only, for pills where the year is noise. */
 export function fmtDayMonth(d) {
   const custom = DAY_MONTH[getLang()];
@@ -310,7 +304,7 @@ export const rentMonth = bill => shiftMonth(bill.month, 1);
 
 export const needsBill = (unitId, month) => !billForMonth(unitId, month);
 
-export const lastBilledMonth = unitId => billsFor(unitId)[0]?.month || null;
+export const lastBill = unitId => billsFor(unitId)[0] || null;
 
 export function fmtDate(d) {
   const custom = SHORT_DATE[getLang()];

@@ -19,6 +19,10 @@ export const SHORT_DATE = {
   vi: d => `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`
 };
 
+export const COMPACT_MONTH = {
+  vi: (y, m) => `Tháng ${m}`
+};
+
 export const DAY_MONTH = {
   vi: d => `${pad(d.getDate())}/${pad(d.getMonth() + 1)}`
 };
@@ -28,18 +32,11 @@ const STRINGS = {
     'app.updateReady': 'New version available — tap to update',
     'app.updating': 'Updating…',
 
-    'units.billingFor': 'Billing for {month}',
-    'units.toBill': 'To bill',
-    'units.toBillGroup': 'Still to bill ({n})',
-    'units.billedGroup': 'Billed',
     'units.allBilled': 'Every unit is billed for {month}',
-    'units.lastBilled': 'Last billed {month}',
-    'units.neverBilled': 'No bills yet',
     'units.owing': 'Awaiting payment',
     'units.allPaid': 'All paid up',
-    'units.owingCount': '{n} unpaid bill{s}',
     'units.count': '{n} unit{s}',
-    'units.paid': 'Paid up',
+    'units.paid': 'Paid',
     'units.unpaid': 'Unpaid',
 
     'unit.required': 'Required',
@@ -106,12 +103,13 @@ const STRINGS = {
     'tab.settings': 'Settings',
 
     'units.title': 'My Units',
-    'units.sub': '{n} unit{s} · {month}',
+    'units.count': '{n} unit{s}',
+    'units.lastInvoice': 'Last invoice',
+    'units.noInvoice': 'No invoice yet',
+    'units.perMonth': '{amount}/month',
     'units.empty': 'No units yet.<br>Add the first one to get started.',
     'units.addFirst': 'Add a unit',
     'units.add': 'Add unit',
-    'units.billed': 'Billed',
-    'units.rent': 'Rent {amount}',
     'units.needRates': 'Set your electricity and water rates in Settings so bills calculate automatically.',
 
     'backup.never': 'Your records live only on this phone. Save a backup so you can restore them if you lose it.',
@@ -255,16 +253,9 @@ const STRINGS = {
     'app.updateReady': 'Đã có phiên bản mới — chạm để cập nhật',
     'app.updating': 'Đang cập nhật…',
 
-    'units.billingFor': 'Đang lập hóa đơn {month}',
-    'units.toBill': 'Cần lập',
-    'units.toBillGroup': 'Chưa lập ({n})',
-    'units.billedGroup': 'Đã lập',
     'units.allBilled': 'Tất cả căn hộ đã có hóa đơn {month}',
-    'units.lastBilled': 'Lần cuối {month}',
-    'units.neverBilled': 'Chưa có hóa đơn',
     'units.owing': 'Chờ thanh toán',
     'units.allPaid': 'Đã thu đủ',
-    'units.owingCount': '{n} hóa đơn chưa trả',
     'units.count': '{n} căn hộ',
     'units.paid': 'Đã trả',
     'units.unpaid': 'Chưa trả',
@@ -333,12 +324,13 @@ const STRINGS = {
     'tab.settings': 'Cài đặt',
 
     'units.title': 'Căn hộ của tôi',
-    'units.sub': '{n} căn hộ · {month}',
+    'units.count': '{n} căn hộ',
+    'units.lastInvoice': 'Hóa đơn',
+    'units.noInvoice': 'Chưa có hóa đơn',
+    'units.perMonth': '{amount}/tháng',
     'units.empty': 'Chưa có căn hộ nào.<br>Thêm căn hộ đầu tiên để bắt đầu.',
     'units.addFirst': 'Thêm căn hộ',
     'units.add': 'Thêm căn hộ',
-    'units.billed': 'Đã tính',
-    'units.rent': 'Tiền thuê {amount}',
     'units.needRates': 'Hãy đặt giá điện và giá nước trong Cài đặt để hóa đơn tự động tính.',
 
     'backup.never': 'Dữ liệu chỉ nằm trên điện thoại này. Hãy lưu một bản sao lưu để khôi phục nếu mất máy.',

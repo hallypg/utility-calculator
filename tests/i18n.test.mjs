@@ -139,18 +139,31 @@ await step('vi: screenshots', async () => {
 });
 
 await step('vi: short months read as 10/2026', async () => {
-  await vi.goto(BASE + '/index.html#/units');
-  await vi.waitForSelector('.summary');
-  const summary = await vi.textContent('.summary');
-  if (/thg/i.test(summary))
-    throw new Error('summary still uses the Intl short month: ' + summary.replace(/\s+/g, ' '));
-  if (!/\d{1,2}\/20\d\d/.test(summary))
-    throw new Error('summary has no month in m/yyyy form: ' + summary.replace(/\s+/g, ' '));
+  // The bill history on a unit is where the short form shows.
+  const unit = await vi.evaluate(async () =>
+    (await import('./js/store.js')).State.data.units[0].id);
+  await vi.goto(BASE + '/index.html#/unit/' + unit);
+  await vi.waitForSelector('.card');
+  const body = (await vi.textContent('#app')).replace(/\s+/g, ' ');
+  if (/thg/i.test(body))
+    throw new Error('the short month is still the Intl one: ' + body.slice(0, 200));
+  if (!/\d{1,2}\/20\d\d/.test(body))
+    throw new Error('no month in m/yyyy form: ' + body.slice(0, 200));
 
-  // The long form is untouched: "tháng 10 năm 2026" still reads naturally.
-  const header = await vi.textContent('#topbar');
-  if (!/tháng/i.test(header))
-    throw new Error('the long month form was changed too: ' + header.replace(/\s+/g, ' '));
+  // The long form is untouched: "tháng 10 năm 2026" still reads naturally
+  // where Home names the month it is billing.
+  await vi.goto(BASE + '/index.html#/home');
+  await vi.waitForSelector('#app .card');
+  const home = (await vi.textContent('#app')).replace(/\s+/g, ' ');
+  if (!/tháng \d{1,2} năm 20\d\d/i.test(home))
+    throw new Error('the long month form was changed too: ' + home.slice(0, 200));
+
+  // And the compact one on the Units screen is the month on its own.
+  await vi.goto(BASE + '/index.html#/units');
+  await vi.waitForSelector('.unit-card');
+  const foot = (await vi.textContent('.unit-card .unit-foot')).replace(/\s+/g, ' ');
+  if (!/Tháng \d{1,2}/.test(foot) || /20\d\d/.test(foot))
+    throw new Error('the unit footer month reads: ' + foot);
 });
 
 await step('vi: dates read as 05/10/2026, on screen and on the image', async () => {

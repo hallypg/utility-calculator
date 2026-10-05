@@ -247,9 +247,10 @@ await step('marking paid flows through to the units screen', async () => {
     throw new Error('the confirmation is still in the action bar');
 
   await page.goto(BASE + '/index.html#/units');
-  await page.waitForSelector('.summary');
-  const sum = (await page.textContent('.summary')).replace(/\s+/g, ' ');
-  if (!/All paid up/.test(sum)) throw new Error('summary still shows owing: ' + sum);
+  await page.waitForSelector('.unit-card');
+  const foot = (await page.textContent('.unit-card .unit-foot')).replace(/\s+/g, ' ');
+  if (!/Paid/.test(foot) || /Unpaid/.test(foot))
+    throw new Error('the unit card still reads: ' + foot);
 
   await page.click('#actionbar button[type="submit"]').catch(() => {});
   await page.goto(BASE + '/index.html#/invoice/' + await page.evaluate(async () =>
@@ -510,7 +511,7 @@ await step('checking for updates reports being current', async () => {
 
 await step('the backup reminder is only in Settings', async () => {
   await page.goto(BASE + '/index.html#/units');
-  await page.waitForSelector('.summary');
+  await page.waitForSelector('.unit-card');
   if (await page.locator('#app .banner').count())
     throw new Error('a banner is still on the Units screen');
 
@@ -525,87 +526,85 @@ await step('the backup reminder is only in Settings', async () => {
 
 let savedBills = null;
 
-await step('units split into still-to-bill and billed', async () => {
-  // Keep the real bills to put back; these two steps rewrite them.
+await step('a unit card carries its newest invoice', async () => {
+  // Keep the real bills to put back; this step rewrites them.
   savedBills = await page.evaluate(() => localStorage.getItem('rmu.v1'));
 
-  // Three units: one billed for the month being billed, two not.
+  // Three units: one billed and paid, one billed and unpaid, one never billed.
   await page.evaluate(async () => {
     const s = await import('./js/store.js');
-    const month = s.billingMonth();
     const d = s.State.data;
-    d.bills = [{
-      id: 'grp1', unitId: d.units[0].id, month, issuedOn: new Date().toISOString().slice(0, 10),
-      elecPrev: 0, elecCurr: 10, waterPrev: 0, waterCurr: 1,
-      elecRate: 1, waterRate: 1, rent: 100, paid: false
-    }];
-    s.State.save();
-  });
-
-  await page.goto(BASE + '/index.html#/units');
-  await page.reload({ waitUntil: 'networkidle' });
-  await page.waitForSelector('.summary');
-
-  // The screen says which month it is working on.
-  if (!(await page.textContent('#topbar')).match(/Billing for/))
-    throw new Error('the billing month is not stated');
-
-  // Both headings show, to-bill first.
-  const heads = await page.$$eval('#app .eyebrow', els => els.map(e => e.textContent.trim()));
-  if (!/Still to bill \(2\)/.test(heads[0] || ''))
-    throw new Error('first heading is "' + heads[0] + '"');
-  if (!/^Billed$/.test(heads[1] || ''))
-    throw new Error('second heading is "' + heads[1] + '"');
-
-  // A unit with no bill for the month shows when it was last billed,
-  // so a skipped month cannot hide.
-  const body = (await page.textContent('#app')).replace(/\s+/g, ' ');
-  if (!/No bills yet|Last billed/.test(body))
-    throw new Error('to-bill cards do not say when they were last billed');
-
-  // The pill answers payment only; "Not billed" is the heading's job now.
-  if (/Not billed/.test(body)) throw new Error('a card still carries a Not billed pill');
-
-  // A unit that has never been billed owes nothing, but calling it "Paid up"
-  // would be nonsense, so it carries no pill at all.
-  const never = await page.evaluate(() => {
-    const cards = [...document.querySelectorAll('#app .card.tap')];
-    const card = cards.find(c => /No bills yet/.test(c.textContent));
-    return card ? card.querySelectorAll('.pill').length : -1;
-  });
-  if (never === -1) throw new Error('no never-billed unit on screen to check');
-  if (never !== 0) throw new Error('a never-billed unit carries a payment pill');
-
-  // The summary counts what is left to do.
-  if (!/To bill/.test(await page.textContent('.summary')))
-    throw new Error('summary does not show the to-bill count');
-});
-
-await step('no headings when every unit is on the same side', async () => {
-  await page.evaluate(async () => {
-    const s = await import('./js/store.js');
     const month = s.billingMonth();
     const today = new Date().toISOString().slice(0, 10);
-    s.State.data.bills = s.State.data.units.map((u, i) => ({
-      id: 'all' + i, unitId: u.id, month, issuedOn: today,
+    const bill = (id, unitId, paid) => ({
+      id, unitId, month, issuedOn: today,
       elecPrev: 0, elecCurr: 10, waterPrev: 0, waterCurr: 1,
-      elecRate: 1, waterRate: 1, rent: 100, paid: true
-    }));
+      elecRate: 1, waterRate: 1, rent: 100, paid
+    });
+    d.bills = [bill('settled', d.units[0].id, true), bill('owing', d.units[1].id, false)];
     s.State.save();
   });
   await page.goto(BASE + '/index.html#/units');
   await page.reload({ waitUntil: 'networkidle' });
-  await page.waitForSelector('.summary');
+  await page.waitForSelector('.unit-card');
 
+  // The count sits above the title, one card per unit.
+  if (!/3 units/.test(await page.textContent('#topbar')))
+    throw new Error('the unit count is missing: ' + (await page.textContent('#topbar')).replace(/\s+/g, ' '));
+  const cards = await page.$$eval('.unit-card', els => els.length);
+  if (cards !== 3) throw new Error(cards + ' cards for 3 units');
+
+  const rows = await page.$$eval('.unit-card', els => els.map(e => ({
+    head: e.querySelector('.unit-row').textContent.replace(/\s+/g, ' ').trim(),
+    foot: e.querySelector('.unit-foot').textContent.replace(/\s+/g, ' ').trim(),
+    pill: e.querySelector('.unit-foot .pill')?.className || ''
+  })));
+
+  // Tenant and rent read as one line under the unit's name.
+  if (!/Sarah Lim · RM[\d,.]+\/month/.test(rows[0].head))
+    throw new Error('the head row reads: ' + rows[0].head);
+
+  // 100 rent + 10 electricity + 1 water.
+  if (!/Last invoice \w+ Paid RM111.00/.test(rows[0].foot))
+    throw new Error('the paid footer reads: ' + rows[0].foot);
+  if (!/done/.test(rows[0].pill)) throw new Error('paid pill is ' + rows[0].pill);
+  if (!/Last invoice \w+ Unpaid RM111.00/.test(rows[1].foot))
+    throw new Error('the unpaid footer reads: ' + rows[1].foot);
+  if (!/unpaid/.test(rows[1].pill)) throw new Error('unpaid pill is ' + rows[1].pill);
+
+  // A unit with no bill says so, and carries no pill or amount.
+  if (!/No invoice yet/.test(rows[2].foot)) throw new Error('the empty footer reads: ' + rows[2].foot);
+  if (rows[2].pill) throw new Error('a never-billed unit carries a payment pill');
+
+  // The month beside an invoice this year is the month alone; a card must
+  // stay on one line rather than trailing off in an ellipsis.
+  if (/\d{4}/.test(rows[0].foot)) throw new Error('the footer spells out the year: ' + rows[0].foot);
+  const clipped = await page.$$eval('.unit-card .truncate, .unit-card .grow',
+    els => els.filter(e => e.scrollWidth > e.clientWidth + 1).map(e => e.textContent.trim()));
+  if (clipped.length) throw new Error('clipped on a 390px screen: ' + JSON.stringify(clipped));
+
+  // The old grouping headings belong to Home now.
   const heads = await page.$$eval('#app .eyebrow', els => els.map(e => e.textContent.trim()));
-  if (heads.length) throw new Error('headings shown with nothing to separate: ' + JSON.stringify(heads));
-  if (!/is billed for/.test(await page.textContent('#app')))
-    throw new Error('no all-done confirmation');
+  if (heads.length) throw new Error('Units still groups its cards: ' + JSON.stringify(heads));
+  if (await page.locator('.summary').count())
+    throw new Error('the summary card is still on the Units screen');
 
   // Put the real data back for the steps that follow.
   await page.evaluate(raw => localStorage.setItem('rmu.v1', raw), savedBills);
   await page.goto(BASE + '/index.html#/units');
   await page.reload({ waitUntil: 'networkidle' });
+});
+
+await step('the add button is the one control in the Units bar', async () => {
+  await page.goto(BASE + '/index.html#/units');
+  await page.waitForSelector('.unit-card');
+  const add = page.locator('#topbar a.icon-btn.round[href="#/unit/new"]');
+  if (!(await add.count())) throw new Error('no round add button in the bar');
+  const box = await add.boundingBox();
+  if (Math.abs(box.width - box.height) > 1) throw new Error('the add button is not a circle');
+  await add.click();
+  await page.waitForSelector('#f-label');
+  if (!/#\/unit\/new$/.test(page.url())) throw new Error('add opened ' + page.url());
 });
 
 await step('home leads with what is owed and what still needs a bill', async () => {

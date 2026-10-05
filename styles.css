@@ -78,6 +78,12 @@ body {
 
 .topbar h1 { font-size: 19px; font-weight: 700; margin: 0; flex: 1; }
 .topbar .sub { display: block; font-size: 13px; font-weight: 500; color: var(--muted); }
+.topbar .eyebrow-sm {
+  display: block;
+  font-size: 12px; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .07em;
+  margin-bottom: 1px;
+}
 
 main {
   padding: 16px 16px calc(96px + env(safe-area-inset-bottom));
@@ -203,6 +209,13 @@ h2:first-child { margin-top: 4px; }
   -webkit-tap-highlight-color: transparent;
 }
 .icon-btn:active { background: var(--surface-2); }
+/* The one control that adds something: a filled circle, not an outline. */
+.icon-btn.round {
+  border-radius: 999px;
+  background: var(--brand);
+  color: #fff;
+}
+.icon-btn.round:active { background: var(--brand); opacity: .85; }
 .icon-btn svg { width: 23px; height: 23px; }
 
 .req { color: var(--danger); font-weight: 700; }
@@ -361,6 +374,25 @@ main.has-bar { padding-bottom: calc(176px + env(safe-area-inset-bottom)); }
 
 /* Unit rows */
 .unit-row { display: flex; align-items: center; gap: 13px; }
+
+/* The unit above the line, its newest invoice below it. */
+.unit-card { padding: 0; overflow: hidden; }
+.unit-card .unit-row { padding: 14px 16px; gap: 11px; }
+.unit-card .tile { width: 40px; height: 40px; border-radius: 11px; }
+.unit-card .muted { font-size: 13.5px; }
+.unit-foot {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 16px;
+  border-top: 1px solid var(--line);
+  font-size: 13.5px;
+  color: var(--muted);
+}
+.unit-foot b { color: var(--ink); font-weight: 700; white-space: nowrap; flex: none; }
+.unit-foot .grow { flex: 0 1 auto; }
+.unit-foot .amount { font-size: 15.5px; color: var(--ink); }
+.chev { width: 20px; height: 20px; flex: none; color: var(--muted); }
 .tile {
   width: 44px; height: 44px; flex: none;
   border-radius: 12px;

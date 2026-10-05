@@ -2,9 +2,9 @@ import {
   State, uid, monthKey, monthLabel, monthShort, shiftMonth,
   activeUnits, findUnit, addUnit, rentOf,
   billsFor, findBill, billForMonth, openingReadings, saveBill, deleteBill,
-  compute, money, num, dueDate, fmtDate, monthNames, invoiceNumber,
-  summary, owedFor, togglePaid, APP_VERSION,
-  billingMonth, rentMonth, needsBill, lastBilledMonth, outstanding, awaitingBill, fmtDayMonth
+  compute, money, num, dueDate, fmtDate, monthNames, monthCompact, invoiceNumber,
+  togglePaid, isPaid, APP_VERSION,
+  billingMonth, rentMonth, lastBill, outstanding, awaitingBill, fmtDayMonth
 } from './store.js';
 import { renderInvoice, invoiceFilename, shareInvoice, invoiceText } from './invoice.js';
 import { t, setLang, getLang, detectLang, plural, LANGUAGES } from './i18n.js';
@@ -27,6 +27,7 @@ const ICON = {
   down: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>',
   up: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>',
   warn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>',
+  chev: '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>',
   empty: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l7-4 7 4v14"/><path d="M10 21v-5h4v5"/></svg>'
 };
 
@@ -201,20 +202,19 @@ function viewHome() {
 
 function viewUnits() {
   const list = activeUnits();
-  // Bills are raised for the month just gone, so that is what this screen
-  // tracks: who still needs one for it.
-  const now = billingMonth();
   const s = State.data.settings;
-  const sum = summary(now);
 
   const banners = [];
   if (!s.elecRate && !s.waterRate && list.length) {
     banners.push(`<a class="banner info" href="#/settings">${ICON.warn}<span>${esc(t('units.needRates'))}</span></a>`);
   }
 
+  const add = `<a class="icon-btn round" href="#/unit/new" aria-label="${esc(t('units.add'))}">${ICON.plus}</a>`;
+
   if (!list.length) {
     return {
       title: t('units.title'),
+      actions: add,
       body: banners.join('') + `
         <div class="empty">
           ${ICON.empty}
@@ -224,67 +224,36 @@ function viewUnits() {
     };
   }
 
-  const summaryCard = `
-    <div class="card summary">
-      <div class="col">
-        <span class="k">${esc(t('units.owing'))}</span>
-        <span class="v">${esc(money(sum.owed))}</span>
-        <span class="s">${esc(sum.count ? t('units.owingCount', { n: sum.count, s: plural(sum.count) }) : t('units.allPaid'))}</span>
-      </div>
-      <div class="col">
-        <span class="k">${esc(t('units.toBill'))}</span>
-        <span class="v">${esc(num(sum.toBill))}</span>
-        <span class="s">${esc(monthShort(now))}</span>
-      </div>
-    </div>`;
-
-  /* The group answers "is there a bill yet"; the pill answers "has it been
-     paid". Keeping them apart stops a card reading "Unpaid" under a heading
-     that says no bill exists. */
+  /* Each card is the unit above the line and its newest invoice below it:
+     who lives there and what they pay, then whether the last bill is
+     settled. What is still to bill for the month is Home's job. */
   const card = u => {
-    const owed = owedFor(u.id);
-    const last = lastBilledMonth(u.id);
-    const waiting = needsBill(u.id, now);
+    const bill = lastBill(u.id);
+    const foot = bill
+      ? `<span class="grow truncate">${esc(t('units.lastInvoice'))}</span>
+         <b>${esc(monthCompact(bill.month))}</b>
+         <span class="pill ${isPaid(bill) ? 'done' : 'unpaid'}">${esc(isPaid(bill) ? t('units.paid') : t('units.unpaid'))}</span>
+         <span class="amount">${esc(money(compute(bill).total))}</span>`
+      : `<span class="grow muted">${esc(t('units.noInvoice'))}</span>`;
     return `
-      <a class="card tap" href="#/unit/${u.id}">
+      <a class="card tap unit-card" href="#/unit/${u.id}">
         <div class="unit-row">
           <span class="tile">${ICON.home}</span>
           <span class="grow">
             <span class="unit-label truncate" style="display:block">${esc(u.label)}</span>
-            <span class="muted truncate" style="display:block">${esc(u.tenantName || t('inv.tenant'))}</span>
-            <span class="tiny" style="display:block">${esc(waiting
-              ? (last ? t('units.lastBilled', { month: monthShort(last) }) : t('units.neverBilled'))
-              : t('units.rent', { amount: money(rentOf(u)) }))}</span>
+            <span class="muted truncate" style="display:block">${esc(u.tenantName || t('inv.tenant'))} · ${esc(t('units.perMonth', { amount: money(rentOf(u)) }))}</span>
           </span>
-          <span style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
-            ${owed > 0
-              ? `<span class="pill unpaid">${esc(t('units.unpaid'))}</span><span class="owing">${esc(money(owed))}</span>`
-              : last ? `<span class="pill done">${esc(t('units.paid'))}</span>` : ''}
-          </span>
+          ${ICON.chev}
         </div>
+        <div class="unit-foot">${foot}</div>
       </a>`;
   };
 
-  const waiting = list.filter(u => needsBill(u.id, now));
-  const done = list.filter(u => !needsBill(u.id, now));
-
-  // A heading earns its place only when there is something to separate.
-  const group = (units, label) => units.length
-    ? (waiting.length && done.length ? `<div class="eyebrow">${esc(label)}</div>` : '') +
-      `<div class="stack">${units.map(card).join('')}</div>`
-    : '';
-
-  const allDone = !waiting.length
-    ? `<div class="banner ok">${ICON.check}<span>${esc(t('units.allBilled', { month: monthLabel(now) }))}</span></div>`
-    : '';
-
   return {
     title: t('units.title'),
-    sub: t('units.billingFor', { month: monthLabel(now) }),
-    actions: `<a class="icon-btn" href="#/unit/new" aria-label="${esc(t('units.add'))}">${ICON.plus}</a>`,
-    body: banners.join('') + summaryCard + allDone +
-      group(waiting, t('units.toBillGroup', { n: waiting.length })) +
-      group(done, t('units.billedGroup'))
+    eyebrow: t('units.count', { n: list.length, s: plural(list.length) }),
+    actions: add,
+    body: banners.join('') + `<div class="stack">${list.map(card).join('')}</div>`
   };
 }
 
@@ -1082,7 +1051,7 @@ function render() {
   const tab = currentTab(path);
   document.getElementById('topbar').innerHTML = `
     ${view.back ? `<a class="icon-btn" href="${view.back}" aria-label="Back">${ICON.back}</a>` : ''}
-    <h1>${esc(view.title)}${view.sub ? `<span class="sub">${esc(view.sub)}</span>` : ''}</h1>
+    <h1>${view.eyebrow ? `<span class="eyebrow-sm">${esc(view.eyebrow)}</span>` : ''}${esc(view.title)}${view.sub ? `<span class="sub">${esc(view.sub)}</span>` : ''}</h1>
     ${view.actions || ''}`;
 
   app.innerHTML = view.body;
