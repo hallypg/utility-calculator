@@ -66,6 +66,7 @@ const STRINGS = {
     'set.neverBackedUp': 'Never',
 
     'common.edit': 'Edit',
+    'common.change': 'Change',
 
     'tab.units': 'Units',
     'tab.history': 'History',
@@ -283,6 +284,7 @@ const STRINGS = {
     'set.neverBackedUp': 'Chưa bao giờ',
 
     'common.edit': 'Sửa',
+    'common.change': 'Đổi',
 
     'tab.units': 'Căn hộ',
     'tab.history': 'Lịch sử',

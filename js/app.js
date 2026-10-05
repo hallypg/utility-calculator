@@ -379,6 +379,7 @@ function viewBill(unitId, month, forceNew) {
         <span class="tile sm ${kind}">${icon}</span>
         <span class="name">${esc(kind === 'elec' ? t('inv.electricity') : t('inv.water'))}</span>
         <span class="rate" id="${rateId}-label"></span>
+        <button type="button" class="btn sm" id="${rateId}-change" data-change="${rateId}">${esc(t('common.change'))}</button>
       </div>
       <div class="two">
         <div class="field" style="margin-bottom:12px">
@@ -392,7 +393,7 @@ function viewBill(unitId, month, forceNew) {
                  placeholder="0" value="${esc(money0(currVal))}">
         </div>
       </div>
-      <div class="field" style="margin-bottom:12px">
+      <div class="field" style="margin-bottom:12px" id="${rateId}-field" hidden>
         <label for="${rateId}">${esc(t('bill.rate', { unit: unitLabel }))}</label>
         <input id="${rateId}" name="${rateId.slice(2)}" type="number" inputmode="decimal" step="any" min="0" required value="${esc(money0(rateVal))}">
       </div>
@@ -474,6 +475,15 @@ function viewBill(unitId, month, forceNew) {
             ? `<div class="field-err" style="margin:0 0 12px">${esc(shownErrors[kind])}</div>` : '';
         }
       };
+
+      // The rate shows as a number until someone chooses to change it.
+      app.querySelectorAll('[data-change]').forEach(btn =>
+        btn.addEventListener('click', () => {
+          const id = btn.dataset.change;
+          document.getElementById(`${id}-field`).hidden = false;
+          btn.hidden = true;
+          document.getElementById(id).focus();
+        }));
 
       form.addEventListener('input', refresh);
       refresh();

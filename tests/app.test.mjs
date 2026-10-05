@@ -118,6 +118,39 @@ await step('live total is correct', async () => {
     document.querySelector('#bill-total')?.textContent.includes('1,408.14'));
 });
 
+await step('rates read as a number until Change is pressed', async () => {
+  for (const [rate, change] of [['#b-elecRate', '#b-elecRate-change'],
+                                ['#b-waterRate', '#b-waterRate-change']]) {
+    if (await page.locator(rate).isVisible())
+      throw new Error(rate + ' input is showing before Change was pressed');
+    if (!(await page.locator(change).isVisible()))
+      throw new Error(change + ' is missing');
+  }
+
+  // The number itself is on display, with its unit.
+  const shown = await page.textContent('#b-elecRate-label');
+  if (!/0\.52/.test(shown) || !/kWh/.test(shown))
+    throw new Error('rate reads "' + shown.trim() + '"');
+
+  // Pressing Change reveals the field and retires the button.
+  await page.click('#b-elecRate-change');
+  if (!(await page.locator('#b-elecRate').isVisible()))
+    throw new Error('Change did not reveal the rate input');
+  if (await page.locator('#b-elecRate-change').isVisible())
+    throw new Error('Change is still showing after being pressed');
+
+  // Water is untouched by changing electricity.
+  if (await page.locator('#b-waterRate').isVisible())
+    throw new Error('changing electricity revealed the water rate too');
+
+  // An edited rate reaches the total.
+  await page.fill('#b-elecRate', '1');
+  await page.waitForFunction(
+    () => /312\.00/.test(document.querySelector('#elec-amt')?.textContent || ''),
+    null, { timeout: 5000 });
+  await page.fill('#b-elecRate', '0.52');
+});
+
 await step('a fresh form shows no error before anything is typed', async () => {
   const unitId = await page.evaluate(async () =>
     (await import('./js/store.js')).State.data.units[0].id);

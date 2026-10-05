@@ -45,6 +45,11 @@ visible there while every assertion passed.
 
 ## Things that bite
 
+- **A class that sets `display` beats the `hidden` attribute.** This hid
+  nothing twice — a confirmation box that was always open, and a button that
+  would not retire — because `.confirm` and `.btn` set a display value.
+  `styles.css` now carries a global `[hidden] { display: none !important; }`;
+  leave it there.
 - **Both language blocks in `js/i18n.js` must hold the same keys.** The i18n
   suite fails if an untranslated key reaches the screen, but a key missing from
   one language only shows as English text in a Vietnamese app.

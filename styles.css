@@ -46,6 +46,9 @@
 
 * { box-sizing: border-box; }
 
+/* A class that sets display would otherwise override the hidden attribute. */
+[hidden] { display: none !important; }
+
 html { -webkit-text-size-adjust: 100%; }
 
 body {
@@ -380,7 +383,8 @@ main.has-bar { padding-bottom: calc(176px + env(safe-area-inset-bottom)); }
 /* Utility card on the bill form */
 .util-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
 .util-head .name { font-size: 16px; font-weight: 800; flex: 1 1 auto; }
-.util-head .rate { font-size: 13px; color: var(--muted); }
+.util-head .rate { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.util-head .btn.sm { min-height: 32px; padding: 0 11px; font-size: 13px; }
 .calc-strip {
   display: flex; justify-content: space-between; align-items: center; gap: 10px;
   border-radius: 12px; padding: 11px 14px; margin-top: 2px;
@@ -482,6 +486,5 @@ main.has-bar { padding-bottom: calc(176px + env(safe-area-inset-bottom)); }
   background: var(--danger-soft); border-radius: 14px; padding: 14px 16px;
   display: flex; flex-direction: column; gap: 12px;
 }
-.confirm[hidden] { display: none; }
 .confirm p { margin: 0; font-size: 14px; color: var(--danger); line-height: 1.45; }
 .confirm .two { gap: 8px; }
