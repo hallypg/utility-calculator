@@ -358,6 +358,21 @@ await step('adjustments are gone from the form, the maths and storage', async ()
     throw new Error('adjustment fields survived in storage');
 });
 
+await step('the backup reminder is only in Settings', async () => {
+  await page.goto(BASE + '/index.html#/units');
+  await page.waitForSelector('.summary');
+  if (await page.locator('#app .banner').count())
+    throw new Error('a banner is still on the Units screen');
+
+  await page.goto(BASE + '/index.html#/settings');
+  await page.waitForSelector('#backup');
+  const banner = page.locator('#app .banner');
+  if (!(await banner.count()))
+    throw new Error('the backup reminder is missing from Settings');
+  if (!/only on this phone/i.test(await banner.textContent()))
+    throw new Error('unexpected banner text: ' + (await banner.textContent()).trim());
+});
+
 await step('history and CSV', async () => {
   await page.click('[data-tab="history"]');
   await page.waitForSelector('text=Month total');

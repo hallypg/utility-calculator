@@ -116,7 +116,6 @@ function viewUnits() {
   if (!s.elecRate && !s.waterRate && list.length) {
     banners.push(`<a class="banner info" href="#/settings">${ICON.warn}<span>${esc(t('units.needRates'))}</span></a>`);
   }
-  banners.push(backupBanner());
 
   if (!list.length) {
     return {
@@ -183,7 +182,7 @@ function backupBanner() {
   const days = last ? (Date.now() - last.getTime()) / 86400000 : Infinity;
   if (days < 45) return '';
   const msg = last ? t('backup.stale', { days: Math.floor(days) }) : t('backup.never');
-  return `<a class="banner" href="#/settings">${ICON.warn}<span>${esc(msg)} ${esc(t('backup.tap'))}</span></a>`;
+  return `<div class="banner">${ICON.warn}<span>${esc(msg)}</span></div>`;
 }
 
 function viewUnitForm(id) {

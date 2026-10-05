@@ -81,7 +81,6 @@ const STRINGS = {
 
     'backup.never': 'Your records live only on this phone. Save a backup so you can restore them if you lose it.',
     'backup.stale': 'Last backup was {days} days ago. Your records live only on this phone.',
-    'backup.tap': 'Tap to back up.',
 
     'unit.edit': 'Edit unit',
     'unit.add': 'Add unit',
@@ -291,7 +290,6 @@ const STRINGS = {
 
     'backup.never': 'Dữ liệu chỉ nằm trên điện thoại này. Hãy lưu một bản sao lưu để khôi phục nếu mất máy.',
     'backup.stale': 'Lần sao lưu gần nhất là {days} ngày trước. Dữ liệu chỉ nằm trên điện thoại này.',
-    'backup.tap': 'Chạm để sao lưu.',
 
     'unit.edit': 'Sửa căn hộ',
     'unit.add': 'Thêm căn hộ',
