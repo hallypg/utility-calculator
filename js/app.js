@@ -749,18 +749,12 @@ function viewSettings() {
             <label for="s-cur">${esc(t('set.currencyOwn'))}</label>
             <input id="s-cur" name="currency" maxlength="4" value="${esc(s.currency)}">
           </div>
-          <div class="two">
-            <div class="field" style="margin-bottom:0">
-              <label for="s-dec">${esc(t('set.decimals'))}</label>
-              <select id="s-dec" name="decimals">
-                <option value="0" ${s.decimals === 0 ? 'selected' : ''}>0</option>
-                <option value="2" ${s.decimals !== 0 ? 'selected' : ''}>2</option>
-              </select>
-            </div>
-            <div class="field" style="margin-bottom:0">
-              <label for="s-due">${esc(t('set.dueDay'))}</label>
-              <input id="s-due" name="dueDay" type="number" inputmode="numeric" min="1" max="28" value="${esc(s.dueDay)}">
-            </div>
+          <div class="rate-row" style="margin:16px 0 0">
+            <label for="s-dec">${esc(t('set.decimals'))}</label>
+            <select id="s-dec" name="decimals">
+              <option value="0" ${s.decimals === 0 ? 'selected' : ''}>0</option>
+              <option value="2" ${s.decimals !== 0 ? 'selected' : ''}>2</option>
+            </select>
           </div>
           <div class="field switch" style="margin:14px 0 0">
             <input id="s-after" name="currencyAfter" type="checkbox" ${s.currencyAfter ? 'checked' : ''}>
@@ -771,6 +765,10 @@ function viewSettings() {
 
         <div class="eyebrow">${esc(t('set.invoice'))}</div>
         <div class="card">
+          <div class="rate-row">
+            <label for="s-due">${esc(t('set.dueDay'))}</label>
+            <input id="s-due" name="dueDay" type="number" inputmode="numeric" min="1" max="28" value="${esc(s.dueDay)}">
+          </div>
           <div class="field" style="margin-bottom:0">
             <label for="s-note">${esc(t('invoice.howToPay'))}</label>
             <textarea id="s-note" name="invoiceNote" placeholder="${esc(t('set.notePh'))}">${esc(s.invoiceNote)}</textarea>

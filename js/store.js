@@ -2,7 +2,7 @@
 
 import { locale } from './i18n.js';
 
-export const APP_VERSION = 'v23';
+export const APP_VERSION = 'v24';
 
 const STORAGE_KEY = 'rmu.v1';
 

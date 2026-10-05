@@ -358,6 +358,33 @@ await step('adjustments are gone from the form, the maths and storage', async ()
     throw new Error('adjustment fields survived in storage');
 });
 
+await step('due day sits in the Invoice section', async () => {
+  await page.goto(BASE + '/index.html#/settings');
+  await page.waitForSelector('#s-due');
+
+  // It must be below the Invoice heading, not the Currency one.
+  const order = await page.evaluate(() => {
+    const heads = [...document.querySelectorAll('#app .eyebrow')].map(e => ({
+      text: e.textContent.trim(), top: e.getBoundingClientRect().top
+    }));
+    const due = document.getElementById('s-due').getBoundingClientRect().top;
+    const above = heads.filter(h => h.top < due).pop();
+    return above ? above.text : null;
+  });
+  if (!/invoice/i.test(order || ''))
+    throw new Error('due day sits under "' + order + '"');
+
+  // And it still saves.
+  await page.fill('#s-due', '20');
+  await page.click('#topbar button[type="submit"]');
+  await page.waitForTimeout(300);
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('rmu.v1')).settings.dueDay);
+  if (saved !== 20) throw new Error('due day did not save: ' + saved);
+  await page.fill('#s-due', '15');
+  await page.click('#topbar button[type="submit"]');
+  await page.waitForTimeout(300);
+});
+
 await step('checking for updates reports being current', async () => {
   await page.goto(BASE + '/index.html#/settings');
   await page.waitForSelector('#check-updates');
