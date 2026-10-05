@@ -574,7 +574,6 @@ function viewInvoice(billId) {
             t('invoice.meter', { from: num(bill.waterPrev), to: num(bill.waterCurr) }),
             t('bill.calc', { used: num(c.waterUsed), unit: s.waterUnit, rate: money(bill.waterRate) })
           ], c.waterAmount)}
-          ${c.adjustment ? line(bill.adjustmentNote || t('inv.adjustment'), [], c.adjustment) : ''}
           <div class="invoice-total">
             <span class="t">${esc(t('invoice.totalDue'))}</span>
             <span class="a">${esc(money(c.total))}</span>
@@ -938,7 +937,7 @@ function exportCsv() {
     t('csv.elecRate'), t('csv.elecAmount'),
     t('csv.waterPrev'), t('csv.waterCurr'), t('csv.waterUsed', { unit: s.waterUnit }),
     t('csv.waterRate'), t('csv.waterAmount'),
-    t('csv.adjustment'), t('csv.adjustmentNote'), t('csv.total')];
+    t('csv.total')];
   const rows = State.data.bills
     .slice()
     .sort((a, b) => a.month.localeCompare(b.month))
@@ -948,7 +947,7 @@ function exportCsv() {
       return [b.month, u?.label || '', u?.tenantName || '', c.rent,
         b.elecPrev, b.elecCurr, c.elecUsed, b.elecRate, c.elecAmount,
         b.waterPrev, b.waterCurr, c.waterUsed, b.waterRate, c.waterAmount,
-        c.adjustment, b.adjustmentNote || '', c.total].map(cell).join(',');
+        c.total].map(cell).join(',');
     });
   download(`rental-history-${new Date().toISOString().slice(0, 10)}.csv`,
     [head.map(cell).join(','), ...rows].join('\n'), 'text/csv');

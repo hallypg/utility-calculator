@@ -39,7 +39,7 @@ export const State = {
       version: 1,
       settings: pickSettings(d.settings),
       units: (Array.isArray(d.units) ? d.units : []).map(migrateUnit),
-      bills: Array.isArray(d.bills) ? d.bills : [],
+      bills: (Array.isArray(d.bills) ? d.bills : []).map(migrateBill),
       lastBackupAt: d.lastBackupAt || null
     };
   },
@@ -86,6 +86,14 @@ function migrateUnit(u) {
     startWater: 0,
     ...out
   };
+}
+
+/* Bills once carried a free-text adjustment line. The feature is gone, so the
+   fields are dropped rather than left unread in storage and in backup files. */
+function migrateBill(b) {
+  if (!('adjustment' in b) && !('adjustmentNote' in b)) return b;
+  const { adjustment, adjustmentNote, ...rest } = b;
+  return rest;
 }
 
 export const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -231,13 +239,10 @@ export function compute(bill) {
   const elecAmount = round2(elecUsed * (Number(bill.elecRate) || 0));
   const waterAmount = round2(waterUsed * (Number(bill.waterRate) || 0));
   const rent = round2(Number(bill.rent) || 0);
-  // Adjustments can no longer be entered, but one saved by an older build is
-  // still counted so its invoice total does not change retroactively.
-  const adjustment = round2(Number(bill.adjustment) || 0);
   return {
-    elecUsed, waterUsed, elecAmount, waterAmount, rent, adjustment,
+    elecUsed, waterUsed, elecAmount, waterAmount, rent,
     utilities: round2(elecAmount + waterAmount),
-    total: round2(rent + elecAmount + waterAmount + adjustment)
+    total: round2(rent + elecAmount + waterAmount)
   };
 }
 

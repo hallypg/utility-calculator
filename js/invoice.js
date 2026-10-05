@@ -149,7 +149,6 @@ export function renderInvoice(bill, unit) {
     `${num(bill.waterPrev)} → ${num(bill.waterCurr)}  ·  ${num(c.waterUsed)} ${s.waterUnit} × ${money(bill.waterRate)}`,
     c.waterAmount
   );
-  if (c.adjustment !== 0) row(bill.adjustmentNote || t('inv.adjustment'), '', c.adjustment);
 
   /* ---- total ---- */
   y += 6;
@@ -237,7 +236,6 @@ export function invoiceText(bill, unit) {
     `${t('inv.electricity')}: ${num(c.elecUsed)} ${s.elecUnit} × ${money(bill.elecRate)} = ${money(c.elecAmount)}`,
     `${t('inv.water')}: ${num(c.waterUsed)} ${s.waterUnit} × ${money(bill.waterRate)} = ${money(c.waterAmount)}`
   ];
-  if (c.adjustment !== 0) lines.push(`${bill.adjustmentNote || t('inv.adjustment')}: ${money(c.adjustment)}`);
   lines.push('', `${t('inv.totalDueCaps')}: ${money(c.total)}`, t('invoice.due', { date: fmtDate(dueDate(bill.month)) }));
   if (s.invoiceNote) lines.push('', s.invoiceNote);
   return lines.join('\n');

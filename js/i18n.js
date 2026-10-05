@@ -116,7 +116,6 @@ const STRINGS = {
     'bill.prev': 'Previous reading',
     'bill.curr': 'Current reading',
     'bill.rate': 'Rate per {unit}',
-    'bill.rentSection': 'Rent & adjustments',
     'bill.rent': 'Rent for this month',
     'bill.save': 'Save bill',
     'bill.saveNew': 'Save & preview invoice',
@@ -150,7 +149,6 @@ const STRINGS = {
     'inv.rent': 'Rent',
     'inv.electricity': 'Electricity',
     'inv.water': 'Water',
-    'inv.adjustment': 'Adjustment',
     'inv.totalDue': 'Total due',
     'inv.totalDueCaps': 'TOTAL DUE',
 
@@ -217,8 +215,6 @@ const STRINGS = {
     'csv.waterUsed': 'Water used ({unit})',
     'csv.waterRate': 'Water rate',
     'csv.waterAmount': 'Water amount',
-    'csv.adjustment': 'Adjustment',
-    'csv.adjustmentNote': 'Adjustment reason',
     'csv.total': 'Total'
   },
 
@@ -330,7 +326,6 @@ const STRINGS = {
     'bill.prev': 'Chỉ số cũ',
     'bill.curr': 'Chỉ số mới',
     'bill.rate': 'Đơn giá mỗi {unit}',
-    'bill.rentSection': 'Tiền thuê & điều chỉnh',
     'bill.rent': 'Tiền thuê tháng này',
     'bill.save': 'Lưu hóa đơn',
     'bill.saveNew': 'Lưu & xem hóa đơn',
@@ -364,7 +359,6 @@ const STRINGS = {
     'inv.rent': 'Tiền thuê',
     'inv.electricity': 'Tiền điện',
     'inv.water': 'Tiền nước',
-    'inv.adjustment': 'Điều chỉnh',
     'inv.totalDue': 'Tổng phải trả',
     'inv.totalDueCaps': 'TỔNG PHẢI TRẢ',
 
@@ -431,8 +425,6 @@ const STRINGS = {
     'csv.waterUsed': 'Nước tiêu thụ ({unit})',
     'csv.waterRate': 'Giá nước',
     'csv.waterAmount': 'Tiền nước',
-    'csv.adjustment': 'Điều chỉnh',
-    'csv.adjustmentNote': 'Lý do điều chỉnh',
     'csv.total': 'Tổng cộng'
   }
 };

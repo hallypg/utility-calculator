@@ -295,7 +295,7 @@ await step('address and starting readings seed the first bill', async () => {
   await page.waitForSelector('text=Ana Reyes');
 });
 
-await step('adjustments cannot be entered but old ones still count', async () => {
+await step('adjustments are gone from the form, the maths and storage', async () => {
   const unitId = await page.evaluate(async () =>
     (await import('./js/store.js')).State.data.units[0].id);
   await page.goto(BASE + '/index.html#/bill/' + unitId + '/new');
@@ -304,13 +304,26 @@ await step('adjustments cannot be entered but old ones still count', async () =>
     if (await page.locator(id).count()) throw new Error(id + ' is still on the bill form');
   }
 
-  // A bill saved before the field was removed keeps its total.
   const total = await page.evaluate(async () => {
     const s = await import('./js/store.js');
     return s.compute({ elecPrev: 0, elecCurr: 100, waterPrev: 0, waterCurr: 10,
                        elecRate: 1, waterRate: 2, rent: 500, adjustment: -50 }).total;
   });
-  if (total !== 570) throw new Error('legacy adjustment not honoured: ' + total);
+  if (total !== 620) throw new Error('adjustment still affecting the total: ' + total);
+
+  // Fields left by an older build are dropped when the data is loaded.
+  const cleaned = await page.evaluate(async () => {
+    const d = JSON.parse(localStorage.getItem('rmu.v1'));
+    d.bills[0].adjustment = -50;
+    d.bills[0].adjustmentNote = 'Repair';
+    localStorage.setItem('rmu.v1', JSON.stringify(d));
+    const s = await import('./js/store.js');
+    s.State.load();
+    s.State.save();
+    return JSON.parse(localStorage.getItem('rmu.v1')).bills[0];
+  });
+  if ('adjustment' in cleaned || 'adjustmentNote' in cleaned)
+    throw new Error('adjustment fields survived in storage');
 });
 
 await step('history and CSV', async () => {
