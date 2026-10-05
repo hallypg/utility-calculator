@@ -2,7 +2,7 @@
 
 import { locale } from './i18n.js';
 
-export const APP_VERSION = 'v31';
+export const APP_VERSION = 'v32';
 
 const STORAGE_KEY = 'rmu.v1';
 
@@ -14,7 +14,7 @@ const DEFAULT_SETTINGS = {
   waterRate: 0,
   elecUnit: 'kWh',
   waterUnit: 'm³',
-  dueDay: 15,
+  dueDays: 14,
   decimals: 2,
   invoiceNote: ''
 };
@@ -210,7 +210,7 @@ export function summary(month) {
   return {
     owed: round2(unpaid.reduce((sum, b) => sum + compute(b).total, 0)),
     count: unpaid.length,
-    billedThisMonth: State.data.bills.filter(b => b.month === month).length,
+    toBill: activeUnits().filter(u => needsBill(u.id, month)).length,
     unitCount: activeUnits().length
   };
 }
@@ -264,12 +264,26 @@ export function money(n) {
 export const num = n =>
   (Number(n) || 0).toLocaleString(locale(), { maximumFractionDigits: 2 });
 
-export function dueDate(month) {
-  const s = State.data.settings;
-  const [y, m] = month.split('-').map(Number);
-  const day = Math.min(Math.max(Number(s.dueDay) || 15, 1), 28);
-  return new Date(y, m - 1, day);
+/* Bills are raised after the usage month, so a due date anchored to that month
+   would already have passed. It runs from the day the bill was issued. */
+export function dueDate(bill) {
+  const days = Math.min(Math.max(Number(State.data.settings.dueDays) || 14, 0), 90);
+  const from = bill && bill.issuedOn ? bill.issuedOn : new Date().toISOString().slice(0, 10);
+  const [y, m, d] = from.split('-').map(Number);
+  const out = new Date(y, m - 1, d);
+  out.setDate(out.getDate() + days);
+  return out;
 }
+
+/* The month whose usage is billed now: the one just gone. */
+export const billingMonth = () => shiftMonth(monthKey(), -1);
+
+/* Rent on a bill covers the month after the usage it is raised for. */
+export const rentMonth = bill => shiftMonth(bill.month, 1);
+
+export const needsBill = (unitId, month) => !billForMonth(unitId, month);
+
+export const lastBilledMonth = unitId => billsFor(unitId)[0]?.month || null;
 
 export const fmtDate = d => d.toLocaleDateString(locale(), { day: 'numeric', month: 'short', year: 'numeric' });
 

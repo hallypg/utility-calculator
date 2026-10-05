@@ -3,7 +3,8 @@ import {
   activeUnits, findUnit, addUnit, rentOf,
   billsFor, findBill, billForMonth, openingReadings, saveBill, deleteBill,
   compute, money, num, dueDate, fmtDate, monthNames, invoiceNumber,
-  summary, owedFor, togglePaid, APP_VERSION
+  summary, owedFor, togglePaid, APP_VERSION,
+  billingMonth, rentMonth, needsBill, lastBilledMonth
 } from './store.js';
 import { renderInvoice, invoiceFilename, shareInvoice, invoiceText } from './invoice.js';
 import { t, setLang, getLang, detectLang, plural, LANGUAGES } from './i18n.js';
@@ -109,7 +110,9 @@ const money0 = v => (v === 0 || v ? v : '');
 
 function viewUnits() {
   const list = activeUnits();
-  const now = monthKey();
+  // Bills are raised for the month just gone, so that is what this screen
+  // tracks: who still needs one for it.
+  const now = billingMonth();
   const s = State.data.settings;
   const sum = summary(now);
 
@@ -138,18 +141,19 @@ function viewUnits() {
         <span class="s">${esc(sum.count ? t('units.owingCount', { n: sum.count, s: plural(sum.count) }) : t('units.allPaid'))}</span>
       </div>
       <div class="col">
-        <span class="k">${esc(t('units.billedThis', { month: monthShort(now) }))}</span>
-        <span class="v">${esc(num(sum.billedThisMonth))}</span>
-        <span class="s">${esc(t('units.created'))}</span>
+        <span class="k">${esc(t('units.toBill'))}</span>
+        <span class="v">${esc(num(sum.toBill))}</span>
+        <span class="s">${esc(monthShort(now))}</span>
       </div>
     </div>`;
 
-  const cards = list.map(u => {
+  /* The group answers "is there a bill yet"; the pill answers "has it been
+     paid". Keeping them apart stops a card reading "Unpaid" under a heading
+     that says no bill exists. */
+  const card = u => {
     const owed = owedFor(u.id);
-    const billed = billForMonth(u.id, now);
-    const pill = owed > 0
-      ? { cls: 'unpaid', label: t('units.unpaid') }
-      : billed ? { cls: 'done', label: t('units.paid') } : { cls: 'todo', label: t('units.notBilled') };
+    const last = lastBilledMonth(u.id);
+    const waiting = needsBill(u.id, now);
     return `
       <a class="card tap" href="#/unit/${u.id}">
         <div class="unit-row">
@@ -157,23 +161,39 @@ function viewUnits() {
           <span class="grow">
             <span class="unit-label truncate" style="display:block">${esc(u.label)}</span>
             <span class="muted truncate" style="display:block">${esc(u.tenantName || t('inv.tenant'))}</span>
-            <span class="tiny" style="display:block">${esc(t('units.rent', { amount: money(rentOf(u)) }))}</span>
+            <span class="tiny" style="display:block">${esc(waiting
+              ? (last ? t('units.lastBilled', { month: monthShort(last) }) : t('units.neverBilled'))
+              : t('units.rent', { amount: money(rentOf(u)) }))}</span>
           </span>
           <span style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
-            <span class="pill ${pill.cls}">${esc(pill.label)}</span>
-            ${owed > 0 ? `<span class="owing">${esc(money(owed))}</span>` : ''}
+            ${owed > 0
+              ? `<span class="pill unpaid">${esc(t('units.unpaid'))}</span><span class="owing">${esc(money(owed))}</span>`
+              : last ? `<span class="pill done">${esc(t('units.paid'))}</span>` : ''}
           </span>
         </div>
       </a>`;
-  }).join('');
+  };
+
+  const waiting = list.filter(u => needsBill(u.id, now));
+  const done = list.filter(u => !needsBill(u.id, now));
+
+  // A heading earns its place only when there is something to separate.
+  const group = (units, label) => units.length
+    ? (waiting.length && done.length ? `<div class="eyebrow">${esc(label)}</div>` : '') +
+      `<div class="stack">${units.map(card).join('')}</div>`
+    : '';
+
+  const allDone = !waiting.length
+    ? `<div class="banner ok">${ICON.check}<span>${esc(t('units.allBilled', { month: monthLabel(now) }))}</span></div>`
+    : '';
 
   return {
     title: t('units.title'),
-    sub: monthLabel(now),
+    sub: t('units.billingFor', { month: monthLabel(now) }),
     actions: `<a class="icon-btn" href="#/unit/new" aria-label="${esc(t('units.add'))}">${ICON.plus}</a>`,
-    body: banners.join('') + summaryCard +
-      `<div class="eyebrow">${esc(t('units.count', { n: list.length, s: plural(list.length) }))}</div>` +
-      `<div class="stack">${cards}</div>`
+    body: banners.join('') + summaryCard + allDone +
+      group(waiting, t('units.toBillGroup', { n: waiting.length })) +
+      group(done, t('units.billedGroup'))
   };
 }
 
@@ -424,7 +444,7 @@ function viewBill(unitId, month, forceNew) {
 
         <div class="card">
           <div class="field" style="margin-bottom:6px">
-            <label for="b-rent" style="font-size:16px;font-weight:800;color:var(--ink)">${esc(t('inv.rent'))}</label>
+            <label for="b-rent" style="font-size:16px;font-weight:800;color:var(--ink)">${esc(t('bill.rentFor', { month: monthLabel(shiftMonth(month, 1)) }))}</label>
             <p class="tiny" style="margin:0 0 8px">${esc(t('bill.rentHint'))}</p>
             <input id="b-rent" name="rent" type="number" inputmode="decimal" step="any" min="0" required value="${esc(money0(b.rent))}">
           </div>
@@ -541,7 +561,7 @@ function viewInvoice(billId) {
 
   const s = State.data.settings;
   const c = compute(bill);
-  const due = dueDate(bill.month);
+  const due = dueDate(bill);
 
   const line = (title, sub, amount) => `
     <div class="invoice-line">
@@ -583,7 +603,7 @@ function viewInvoice(billId) {
         </div>
 
         <div class="invoice-lines">
-          ${line(t('inv.rent'), [monthLabel(bill.month)], c.rent)}
+          ${line(t('inv.rent'), [monthLabel(rentMonth(bill))], c.rent)}
           ${line(t('inv.electricity'), [
             t('invoice.meter', { from: num(bill.elecPrev), to: num(bill.elecCurr) }),
             t('bill.calc', { used: num(c.elecUsed), unit: s.elecUnit, rate: money(bill.elecRate) })
@@ -781,8 +801,8 @@ function viewSettings() {
         <div class="eyebrow">${esc(t('set.invoice'))}</div>
         <div class="card">
           <div class="rate-row">
-            <label for="s-due">${esc(t('set.dueDay'))}</label>
-            <input id="s-due" name="dueDay" type="number" inputmode="numeric" min="1" max="28" value="${esc(s.dueDay)}">
+            <label for="s-due">${esc(t('set.dueDays'))}</label>
+            <input id="s-due" name="dueDays" type="number" inputmode="numeric" min="0" max="90" value="${esc(s.dueDays)}">
           </div>
           <div class="field" style="margin-bottom:0">
             <label for="s-note">${esc(t('invoice.howToPay'))}</label>
@@ -871,7 +891,7 @@ function viewSettings() {
           currency: f.get('currency') || '$',
           currencyAfter: f.get('currencyAfter') === 'on',
           decimals: Number(f.get('decimals')) === 0 ? 0 : 2,
-          dueDay: Math.min(Math.max(Number(f.get('dueDay')) || 15, 1), 28),
+          dueDays: Math.min(Math.max(Number(f.get('dueDays')) || 14, 0), 90),
           invoiceNote: f.get('invoiceNote').trim()
         });
         State.save();
@@ -986,7 +1006,7 @@ const ROUTES = [
   [/^\/unit\/new$/, () => viewUnitForm('new')],
   [/^\/unit\/([^/]+)\/edit$/, id => viewUnitForm(id)],
   [/^\/unit\/([^/]+)$/, id => viewUnit(id)],
-  [/^\/bill\/([^/]+)\/new$/, unitId => viewBill(unitId, monthKey(), true)],
+  [/^\/bill\/([^/]+)\/new$/, unitId => viewBill(unitId, billingMonth(), true)],
   [/^\/bill\/([^/]+)\/([^/]+)$/, (unitId, month) => viewBill(unitId, month)],
   [/^\/invoice\/([^/]+)$/, id => viewInvoice(id)],
   [/^\/history$/, viewHistory],

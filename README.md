@@ -11,8 +11,9 @@ storage on the phone it is used on, and nothing is ever sent anywhere.
 ## What it does
 
 - **Units** — a list of the units being managed, each with tenant name, address
-  and phone (tap to call or text). A summary at the top shows how much is
-  awaiting payment and how many bills exist for the current month.
+  and phone (tap to call or text), split into those that still need a bill for
+  the month being billed and those that have one. A summary at the top shows
+  how much is awaiting payment and how many units are left to bill.
 - **Paid / unpaid** — each bill carries a paid flag, set from its invoice. What
   is still owed shows against the unit and in the month totals.
 - **Rent per unit** — one monthly amount on the unit, edited whenever it
@@ -113,6 +114,16 @@ electricity = (current reading − previous reading) × electricity rate
 water       = (current reading − previous reading) × water rate
 total       = rent + electricity + water
 ```
+
+**Bills are raised in arrears.** A bill created in November covers October's
+electricity and water, and November's rent — so the rent line names a
+different month from the meter readings, deliberately. The month a new bill
+opens on is the month just gone, and the Units screen groups by that same
+month.
+
+The due date runs from the day the bill was issued, not from the usage month,
+which would otherwise have passed before the invoice was written. Settings
+holds the number of days.
 
 
 Each saved bill stores a snapshot of the rates and rent used at the time, so

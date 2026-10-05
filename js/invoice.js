@@ -1,7 +1,7 @@
 /* Renders an invoice as a PNG on a canvas, then hands it to the phone's
    native share sheet. No libraries, so it works offline. */
 
-import { State, compute, money, num, monthLabel, dueDate, fmtDate, invoiceNumber } from './store.js';
+import { State, compute, money, num, monthLabel, dueDate, fmtDate, invoiceNumber, rentMonth } from './store.js';
 import { t } from './i18n.js';
 
 const W = 1080;
@@ -106,7 +106,7 @@ export function renderInvoice(bill, unit) {
   }
   ctx.fillStyle = INK;
   ctx.font = font(500, 28);
-  ctx.fillText(fmtDate(dueDate(bill.month)), colR, y + 18);
+  ctx.fillText(fmtDate(dueDate(bill)), colR, y + 18);
 
   y += 76;
 
@@ -138,7 +138,7 @@ export function renderInvoice(bill, unit) {
     y += 46;
   };
 
-  row(t('inv.rent'), monthLabel(bill.month), c.rent);
+  row(t('inv.rent'), monthLabel(rentMonth(bill)), c.rent);
   row(
     t('inv.electricity'),
     `${num(bill.elecPrev)} → ${num(bill.elecCurr)}  ·  ${num(c.elecUsed)} ${s.elecUnit} × ${money(bill.elecRate)}`,
@@ -232,11 +232,11 @@ export function invoiceText(bill, unit) {
     `${t('invoice.title')} — ${monthLabel(bill.month)}`,
     `${t('inv.unit', { label: unit.label })}${unit.tenantName ? ` · ${unit.tenantName}` : ''}`,
     '',
-    `${t('inv.rent')}: ${money(c.rent)}`,
+    `${t('inv.rent')} (${monthLabel(rentMonth(bill))}): ${money(c.rent)}`,
     `${t('inv.electricity')}: ${num(c.elecUsed)} ${s.elecUnit} × ${money(bill.elecRate)} = ${money(c.elecAmount)}`,
     `${t('inv.water')}: ${num(c.waterUsed)} ${s.waterUnit} × ${money(bill.waterRate)} = ${money(c.waterAmount)}`
   ];
-  lines.push('', `${t('inv.totalDueCaps')}: ${money(c.total)}`, t('invoice.due', { date: fmtDate(dueDate(bill.month)) }));
+  lines.push('', `${t('inv.totalDueCaps')}: ${money(c.total)}`, t('invoice.due', { date: fmtDate(dueDate(bill)) }));
   if (s.invoiceNote) lines.push('', s.invoiceNote);
   return lines.join('\n');
 }

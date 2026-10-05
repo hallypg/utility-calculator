@@ -329,8 +329,10 @@ await step('the unit CTA always offers a new bill', async () => {
     throw new Error('blank form was prefilled from the existing bill');
 
   const picked = await page.inputValue('#b-month');
-  const thisMonth = new Date().toISOString().slice(0, 7);
-  if (picked !== thisMonth) throw new Error('expected ' + thisMonth + ', got ' + picked);
+  const d = new Date();
+  const lastMonth = new Date(d.getFullYear(), d.getMonth() - 1, 1).toISOString().slice(0, 7);
+  if (picked !== lastMonth)
+    throw new Error('expected last month ' + lastMonth + ', got ' + picked);
 
   // The existing bill is still reachable from its card.
   await page.goto(BASE + '/index.html#/unit/' + unitId);
@@ -345,7 +347,7 @@ await step('invoice text copy is well formed', async () => {
     const bill = store.State.data.bills[0];
     return mod.invoiceText(bill, store.findUnit(bill.unitId));
   });
-  for (const want of ['TOTAL DUE: RM1,408.14', 'Electricity: 312 kWh', 'Water: 34 m³', 'Rent: RM1,200.00']) {
+  for (const want of ['TOTAL DUE: RM1,408.14', 'Electricity: 312 kWh', 'Water: 34 m³', 'Rent (']) {
     if (!txt.includes(want)) throw new Error('missing "' + want + '" in:\n' + txt);
   }
 });
@@ -462,9 +464,9 @@ await step('due day sits in the Invoice section', async () => {
   await page.fill('#s-due', '20');
   await page.click('#topbar button[type="submit"]');
   await page.waitForTimeout(300);
-  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('rmu.v1')).settings.dueDay);
-  if (saved !== 20) throw new Error('due day did not save: ' + saved);
-  await page.fill('#s-due', '15');
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('rmu.v1')).settings.dueDays);
+  if (saved !== 20) throw new Error('due days did not save: ' + saved);
+  await page.fill('#s-due', '14');
   await page.click('#topbar button[type="submit"]');
   await page.waitForTimeout(300);
 });
@@ -507,6 +509,91 @@ await step('the backup reminder is only in Settings', async () => {
     throw new Error('the backup reminder is missing from Settings');
   if (!/only on this phone/i.test(await banner.textContent()))
     throw new Error('unexpected banner text: ' + (await banner.textContent()).trim());
+});
+
+let savedBills = null;
+
+await step('units split into still-to-bill and billed', async () => {
+  // Keep the real bills to put back; these two steps rewrite them.
+  savedBills = await page.evaluate(() => localStorage.getItem('rmu.v1'));
+
+  // Three units: one billed for the month being billed, two not.
+  await page.evaluate(async () => {
+    const s = await import('./js/store.js');
+    const month = s.billingMonth();
+    const d = s.State.data;
+    d.bills = [{
+      id: 'grp1', unitId: d.units[0].id, month, issuedOn: new Date().toISOString().slice(0, 10),
+      elecPrev: 0, elecCurr: 10, waterPrev: 0, waterCurr: 1,
+      elecRate: 1, waterRate: 1, rent: 100, paid: false
+    }];
+    s.State.save();
+  });
+
+  await page.goto(BASE + '/index.html#/units');
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForSelector('.summary');
+
+  // The screen says which month it is working on.
+  if (!(await page.textContent('#topbar')).match(/Billing for/))
+    throw new Error('the billing month is not stated');
+
+  // Both headings show, to-bill first.
+  const heads = await page.$$eval('#app .eyebrow', els => els.map(e => e.textContent.trim()));
+  if (!/Still to bill \(2\)/.test(heads[0] || ''))
+    throw new Error('first heading is "' + heads[0] + '"');
+  if (!/^Billed$/.test(heads[1] || ''))
+    throw new Error('second heading is "' + heads[1] + '"');
+
+  // A unit with no bill for the month shows when it was last billed,
+  // so a skipped month cannot hide.
+  const body = (await page.textContent('#app')).replace(/\s+/g, ' ');
+  if (!/No bills yet|Last billed/.test(body))
+    throw new Error('to-bill cards do not say when they were last billed');
+
+  // The pill answers payment only; "Not billed" is the heading's job now.
+  if (/Not billed/.test(body)) throw new Error('a card still carries a Not billed pill');
+
+  // A unit that has never been billed owes nothing, but calling it "Paid up"
+  // would be nonsense, so it carries no pill at all.
+  const never = await page.evaluate(() => {
+    const cards = [...document.querySelectorAll('#app .card.tap')];
+    const card = cards.find(c => /No bills yet/.test(c.textContent));
+    return card ? card.querySelectorAll('.pill').length : -1;
+  });
+  if (never === -1) throw new Error('no never-billed unit on screen to check');
+  if (never !== 0) throw new Error('a never-billed unit carries a payment pill');
+
+  // The summary counts what is left to do.
+  if (!/To bill/.test(await page.textContent('.summary')))
+    throw new Error('summary does not show the to-bill count');
+});
+
+await step('no headings when every unit is on the same side', async () => {
+  await page.evaluate(async () => {
+    const s = await import('./js/store.js');
+    const month = s.billingMonth();
+    const today = new Date().toISOString().slice(0, 10);
+    s.State.data.bills = s.State.data.units.map((u, i) => ({
+      id: 'all' + i, unitId: u.id, month, issuedOn: today,
+      elecPrev: 0, elecCurr: 10, waterPrev: 0, waterCurr: 1,
+      elecRate: 1, waterRate: 1, rent: 100, paid: true
+    }));
+    s.State.save();
+  });
+  await page.goto(BASE + '/index.html#/units');
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForSelector('.summary');
+
+  const heads = await page.$$eval('#app .eyebrow', els => els.map(e => e.textContent.trim()));
+  if (heads.length) throw new Error('headings shown with nothing to separate: ' + JSON.stringify(heads));
+  if (!/is billed for/.test(await page.textContent('#app')))
+    throw new Error('no all-done confirmation');
+
+  // Put the real data back for the steps that follow.
+  await page.evaluate(raw => localStorage.setItem('rmu.v1', raw), savedBills);
+  await page.goto(BASE + '/index.html#/units');
+  await page.reload({ waitUntil: 'networkidle' });
 });
 
 await step('history and CSV', async () => {

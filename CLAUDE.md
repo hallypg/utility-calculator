@@ -50,6 +50,11 @@ visible there while every assertion passed.
   would not retire — because `.confirm` and `.btn` set a display value.
   `styles.css` now carries a global `[hidden] { display: none !important; }`;
   leave it there.
+- **Billing is in arrears, and three things follow from it.** A bill's `month`
+  is the usage month; its rent covers `month + 1`; its due date runs from
+  `issuedOn`, never from `month`, which would already have passed. The Units
+  screen and the new-bill form both anchor on `billingMonth()`, the month just
+  gone, not on today's month.
 - **Both language blocks in `js/i18n.js` must hold the same keys.** The i18n
   suite fails if an untranslated key reaches the screen, but a key missing from
   one language only shows as English text in a Vietnamese app.

@@ -256,6 +256,7 @@ textarea { min-height: 80px; resize: vertical; }
 }
 .banner svg { width: 18px; height: 18px; flex: none; margin-top: 1px; }
 .banner.info { background: var(--brand-soft); color: var(--brand); }
+.banner.ok { background: color-mix(in srgb, var(--ok) 14%, transparent); color: var(--ok); }
 
 .toast {
   position: fixed;
