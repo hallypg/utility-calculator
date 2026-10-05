@@ -1,7 +1,7 @@
 import {
   State, uid, monthKey, monthLabel, monthShort, shiftMonth,
   activeUnits, findUnit, addUnit, rentOf,
-  billsFor, findBill, billForMonth, openingReadings, saveBill, deleteBill,
+  billsFor, findBill, billForMonth, openingReadings, nextBill, saveBill, deleteBill,
   compute, money, num, dueDate, fmtDate, monthNames, monthCompact, invoiceNumber,
   togglePaid, isPaid, APP_VERSION,
   billingMonth, rentMonth, lastBill, outstanding, awaitingBill, fmtDayMonth
@@ -624,6 +624,35 @@ function viewBill(unitId, month, forceNew) {
         if (clash && !confirm(t('bill.confirmReplace', { month: monthLabel(d.month) }))) return;
         if (clash) deleteBill(clash.id);
 
+        /* A bill saved before an existing one leaves that one opening from
+           older readings, so the stretch between them would be billed on
+           both. Offer to carry the later bill on from this one. */
+        let fixedMonth = null;
+        const follower = nextBill(unitId, d.month);
+        const closes = { elec: Number(d.elecCurr) || 0, water: Number(d.waterCurr) || 0 };
+        const drifted = follower &&
+          (Number(follower.elecPrev) !== closes.elec || Number(follower.waterPrev) !== closes.water);
+
+        if (drifted) {
+          const month = monthLabel(follower.month);
+          // A later bill cannot end below where this one ends; that is a
+          // reading to check, not a gap to close.
+          if (Number(follower.elecCurr) < closes.elec || Number(follower.waterCurr) < closes.water) {
+            alert(t('bill.chainBlocked', { month }));
+          } else {
+            const after = { ...follower, elecPrev: closes.elec, waterPrev: closes.water };
+            const ask = t('bill.chainAsk', {
+              month,
+              before: money(compute(follower).total),
+              after: money(compute(after).total)
+            }) + (follower.paid ? '\n\n' + t('bill.chainPaid', { month }) : '');
+            if (confirm(ask)) {
+              saveBill({ id: follower.id, elecPrev: closes.elec, waterPrev: closes.water });
+              fixedMonth = month;
+            }
+          }
+        }
+
         const runNext = billRun
           ? awaitingBill(d.month).find(x => x.id !== unitId)
           : null;
@@ -648,7 +677,7 @@ function viewBill(unitId, month, forceNew) {
           return;
         }
         billRun = false;
-        toast(t('bill.saved'));
+        toast(fixedMonth ? t('bill.chainFixed', { month: fixedMonth }) : t('bill.saved'));
         nav(`#/invoice/${id}`);
       });
 

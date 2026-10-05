@@ -88,3 +88,12 @@ visible there while every assertion passed.
   on install, and the page offers a reload afterwards instead.
 - Each saved bill snapshots the rent and rates it was created with. Changing a
   rate or a unit's rent must never alter a bill already issued.
+- **A unit's bills are a chain: each one's closing readings are the next one's
+  opening.** The month picker can reach five years back and two forward, so
+  bills do not arrive in order. Two rules follow. The new-bill form recomputes
+  its opening from whichever month is *picked*, not the month it opened on, and
+  leaves alone any opening that has been typed over. And saving a bill that has
+  a later bill after it offers to carry that one on, because a later bill
+  written before this one still opens from older readings and the stretch
+  between them would be charged twice. Changing a closing reading or deleting a
+  bill breaks the same chain and is not covered yet.

@@ -859,6 +859,108 @@ await step('the form follows the month picker, prefill and all', async () => {
   }
 });
 
+await step('backfilling a gap offers to carry the later bill on', async () => {
+  const snapshot = await page.evaluate(() => localStorage.getItem('rmu.v1'));
+  try {
+    const unit = await page.evaluate(async () => {
+      const s = await import('./js/store.js');
+      const d = s.State.data;
+      const u = d.units[0].id;
+      const bill = (id, month, ep, ec, wp, wc) => ({
+        id, unitId: u, month, issuedOn: month + '-28',
+        elecPrev: ep, elecCurr: ec, waterPrev: wp, waterCurr: wc,
+        elecRate: 1, waterRate: 1, rent: 100, paid: false
+      });
+      // January closes at 100, March at 300 and opens from January.
+      d.bills = [bill('jan', '2026-01', 0, 100, 0, 10), bill('mar', '2026-03', 100, 300, 10, 30)];
+      s.State.save();
+      return u;
+    });
+
+    // Fill the February gap, answering the question as asked.
+    const backfill = async (elec, answer) => {
+      await page.evaluate(async () => {
+        const s = await import('./js/store.js');
+        const m = s.State.data.bills.find(x => x.id === 'mar');
+        m.elecPrev = 100; m.waterPrev = 10;
+        s.State.data.bills = s.State.data.bills.filter(x => x.month !== '2026-02');
+        s.State.save();
+      });
+      await page.goto(BASE + '/index.html#/bill/' + unit + '/new');
+      await page.reload({ waitUntil: 'networkidle' });
+      await page.waitForSelector('#b-elecPrev');
+      await page.selectOption('#b-month-m', '02');
+      await page.selectOption('#b-month-y', '2026');
+      await page.waitForTimeout(200);
+      await page.fill('#b-elecCurr', String(elec));
+      await page.fill('#b-waterCurr', '25');
+      let seen = null;
+      page.once('dialog', async dlg => {
+        seen = { type: dlg.type(), message: dlg.message() };
+        await (answer ? dlg.accept() : dlg.dismiss());
+      });
+      await page.click('#actionbar button[type="submit"]');
+      await page.waitForTimeout(600);
+      return seen;
+    };
+    const march = () => page.evaluate(async () => {
+      const s = await import('./js/store.js');
+      const m = s.State.data.bills.find(x => x.id === 'mar');
+      return `${m.elecPrev}/${m.waterPrev}`;
+    });
+    const usedAcross = () => page.evaluate(async () => {
+      const s = await import('./js/store.js');
+      return s.State.data.bills.reduce((n, x) => n + s.compute(x).elecUsed, 0);
+    });
+
+    // Accepting rewrites March to open where February ends, which is what
+    // stops the stretch between them being charged on both.
+    let dlg = await backfill(250, true);
+    if (!dlg || dlg.type !== 'confirm') throw new Error('no question was asked: ' + JSON.stringify(dlg));
+    if (!/March 2026/.test(dlg.message)) throw new Error('the question reads: ' + dlg.message);
+    if (!/320\.00/.test(dlg.message) || !/155\.00/.test(dlg.message))
+      throw new Error('the question does not state the change in total: ' + dlg.message);
+    if (await march() !== '250/25') throw new Error('March opens at ' + await march() + ', expected 250/25');
+    // The meter moved 0 -> 300, so that is what the three bills must total.
+    const used = await usedAcross();
+    if (used !== 300) throw new Error(used + ' units billed across the three, the meter moved 300');
+
+    // Declining leaves the later bill exactly as it was.
+    dlg = await backfill(250, false);
+    if (await march() !== '100/10') throw new Error('declining still rewrote March: ' + await march());
+
+    // A February ending above March cannot be carried on from; that is a
+    // reading to check, so it says so and touches nothing.
+    dlg = await backfill(350, true);
+    if (!dlg || dlg.type !== 'alert') throw new Error('expected a plain warning, got ' + JSON.stringify(dlg));
+    if (await march() !== '100/10') throw new Error('an impossible carry-on was written anyway');
+
+    // Nothing later means nothing to ask about.
+    await page.evaluate(async () => {
+      const s = await import('./js/store.js');
+      s.State.data.bills = s.State.data.bills.filter(x => x.month < '2026-03');
+      s.State.save();
+    });
+    await page.goto(BASE + '/index.html#/bill/' + unit + '/new');
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForSelector('#b-elecPrev');
+    await page.selectOption('#b-month-m', '06');
+    await page.selectOption('#b-month-y', '2026');
+    await page.waitForTimeout(200);
+    await page.fill('#b-elecCurr', '400');
+    await page.fill('#b-waterCurr', '40');
+    let asked = false;
+    page.once('dialog', async d2 => { asked = true; await d2.accept(); });
+    await page.click('#actionbar button[type="submit"]');
+    await page.waitForTimeout(600);
+    if (asked) throw new Error('billing the newest month asked about a later bill');
+  } finally {
+    await page.evaluate(raw => localStorage.setItem('rmu.v1', raw), snapshot);
+    await page.goto(BASE + '/index.html#/units');
+    await page.reload({ waitUntil: 'networkidle' });
+  }
+});
+
 await step('the tab bar is home, units and settings', async () => {
   await page.goto(BASE + '/index.html#/units');
   await page.waitForSelector('.tabbar');

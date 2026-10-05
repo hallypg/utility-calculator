@@ -2,7 +2,7 @@
 
 import { locale, getLang, SHORT_MONTH, COMPACT_MONTH, SHORT_DATE, DAY_MONTH } from './i18n.js';
 
-export const APP_VERSION = 'v49';
+export const APP_VERSION = 'v50';
 
 const STORAGE_KEY = 'rmu.v1';
 
@@ -173,6 +173,15 @@ export function previousBill(unitId, month) {
     .filter(b => b.unitId === unitId && b.month < month)
     .sort((a, b) => a.month.localeCompare(b.month));
   return earlier.length ? earlier[earlier.length - 1] : null;
+}
+
+/* The earliest bill after this month: the one whose opening readings have
+   to carry on from it. */
+export function nextBill(unitId, month) {
+  const later = State.data.bills
+    .filter(b => b.unitId === unitId && b.month > month)
+    .sort((a, b) => a.month.localeCompare(b.month));
+  return later.length ? later[0] : null;
 }
 
 export function openingReadings(unitId, month) {
