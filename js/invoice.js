@@ -49,10 +49,11 @@ export function renderInvoice(bill, unit) {
   const c = compute(bill);
   const paid = !!bill.paid;
 
-  // Draw tall, measure where we finished, then crop to fit.
+  // This is read as a thumbnail in a chat thread, often a third of its real
+  // width, so the type runs larger than a page of the same proportions would.
   const scratch = document.createElement('canvas');
   scratch.width = W;
-  scratch.height = 2600;
+  scratch.height = 3000;
   const ctx = scratch.getContext('2d');
   ctx.textBaseline = 'alphabetic';
 
@@ -60,59 +61,58 @@ export function renderInvoice(bill, unit) {
   ctx.fillRect(0, 0, W, scratch.height);
 
   /* ---- header band: the amount owed, as on the invoice screen ---- */
-  const headerH = 300;
+  const headerH = 364;
   ctx.fillStyle = BRAND;
   ctx.fillRect(0, 0, W, headerH);
 
   ctx.fillStyle = 'rgba(255,255,255,0.80)';
-  ctx.font = font(700, 23);
-  const heading = t('invoice.title').toUpperCase();
+  ctx.font = font(700, 30);
   ctx.save();
   ctx.letterSpacing = '2px';
-  ctx.fillText(heading, PAD, 86);
+  ctx.fillText(t('invoice.title').toUpperCase(), PAD, 100);
   ctx.textAlign = 'right';
-  ctx.fillText(invoiceNumber(unit, bill.month), W - PAD, 86);
+  ctx.fillText(invoiceNumber(unit, bill.month), W - PAD, 100);
   ctx.restore();
   ctx.textAlign = 'left';
 
   ctx.fillStyle = '#FFFFFF';
-  ctx.font = font(800, 68);
-  ctx.fillText(money(c.total), PAD, 184);
+  ctx.font = font(800, 92);
+  ctx.fillText(money(c.total), PAD, 222);
 
-  ctx.font = font(500, 26);
-  ctx.fillStyle = 'rgba(255,255,255,0.80)';
-  ctx.fillText(t('invoice.due', { date: fmtDate(dueDate(bill)) }), PAD, 240);
+  ctx.font = font(500, 34);
+  ctx.fillStyle = 'rgba(255,255,255,0.82)';
+  ctx.fillText(t('invoice.due', { date: fmtDate(dueDate(bill)) }), PAD, 292);
 
   // Status pill, matching the one on screen.
   const pillText = paid ? t('units.paid') : t('units.unpaid');
-  ctx.font = font(700, 24);
-  const pillW = ctx.measureText(pillText).width + 44;
-  const pillH = 48;
+  ctx.font = font(700, 30);
+  const pillW = ctx.measureText(pillText).width + 56;
+  const pillH = 62;
   const pillX = W - PAD - pillW;
-  const pillY = 240 - 34;
+  const pillY = 292 - 44;
   ctx.fillStyle = paid ? '#E3F3EC' : '#FEF2F2';
   roundRect(ctx, pillX, pillY, pillW, pillH, pillH / 2);
   ctx.fill();
   ctx.fillStyle = paid ? OK : DANGER;
   ctx.textAlign = 'center';
-  ctx.fillText(pillText, pillX + pillW / 2, pillY + 33);
+  ctx.fillText(pillText, pillX + pillW / 2, pillY + 42);
   ctx.textAlign = 'left';
 
   /* ---- who and when ---- */
-  let y = headerH + 62;
-  const colR = W / 2 + 10;
+  let y = headerH + 76;
+  const colR = W / 2 + 4;
 
   const pair = (x, label, value, sub) => {
     ctx.fillStyle = MUTED;
-    ctx.font = font(600, 24);
+    ctx.font = font(600, 30);
     ctx.fillText(label, x, y);
     ctx.fillStyle = INK;
-    ctx.font = font(700, 31);
-    ctx.fillText(value, x, y + 42);
+    ctx.font = font(700, 40);
+    ctx.fillText(value, x, y + 56);
     if (sub) {
       ctx.fillStyle = MUTED;
-      ctx.font = font(400, 26);
-      ctx.fillText(sub, x, y + 80);
+      ctx.font = font(400, 32);
+      ctx.fillText(sub, x, y + 104);
     }
   };
 
@@ -122,7 +122,7 @@ export function renderInvoice(bill, unit) {
     fmtDate(bill.issuedOn ? new Date(bill.issuedOn.replace(/-/g, '/')) : new Date()),
     t('invoice.forMonth', { month: monthLabel(bill.month) }));
 
-  y += 122;
+  y += 154;
   ctx.strokeStyle = LINE;
   ctx.lineWidth = 2;
   ctx.beginPath();
@@ -132,22 +132,22 @@ export function renderInvoice(bill, unit) {
 
   /* ---- line items ---- */
   const item = (title, subs, amount) => {
-    y += 38;
+    y += 50;
     ctx.fillStyle = INK;
-    ctx.font = font(700, 31);
+    ctx.font = font(700, 40);
     ctx.fillText(title, PAD, y);
     ctx.textAlign = 'right';
     ctx.fillText(money(amount), W - PAD, y);
     ctx.textAlign = 'left';
 
     ctx.fillStyle = MUTED;
-    ctx.font = font(400, 26);
+    ctx.font = font(400, 32);
     for (const sub of subs.filter(Boolean)) {
-      y += 36;
+      y += 44;
       ctx.fillText(sub, PAD, y);
     }
 
-    y += 30;
+    y += 38;
     ctx.strokeStyle = LINE;
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -167,41 +167,41 @@ export function renderInvoice(bill, unit) {
   ], c.waterAmount);
 
   /* ---- total ---- */
-  y += 52;
+  y += 68;
   ctx.fillStyle = INK;
-  ctx.font = font(800, 34);
+  ctx.font = font(800, 44);
   ctx.fillText(t('invoice.totalDue'), PAD, y);
   ctx.textAlign = 'right';
-  ctx.font = font(800, 44);
+  ctx.font = font(800, 58);
   ctx.fillText(money(c.total), W - PAD, y);
   ctx.textAlign = 'left';
-  y += 40;
+  y += 52;
 
   /* ---- how to pay ---- */
   if (s.invoiceNote) {
-    y += 40;
-    ctx.font = font(400, 26);
-    const lines = s.invoiceNote.split('\n').flatMap(l => wrap(ctx, l, W - PAD * 2 - 72));
-    const boxH = 40 + 38 + lines.length * 36 + 32;
+    y += 48;
+    ctx.font = font(400, 32);
+    const lines = s.invoiceNote.split('\n').flatMap(l => wrap(ctx, l, W - PAD * 2 - 80));
+    const boxH = 48 + 46 + lines.length * 44 + 40;
     ctx.fillStyle = SURFACE2;
-    roundRect(ctx, PAD, y, W - PAD * 2, boxH, 22);
+    roundRect(ctx, PAD, y, W - PAD * 2, boxH, 26);
     ctx.fill();
 
     ctx.fillStyle = INK;
-    ctx.font = font(700, 26);
-    ctx.fillText(t('invoice.howToPay'), PAD + 36, y + 58);
+    ctx.font = font(700, 32);
+    ctx.fillText(t('invoice.howToPay'), PAD + 40, y + 70);
 
     ctx.fillStyle = MUTED;
-    ctx.font = font(400, 26);
-    let ly = y + 96;
+    ctx.font = font(400, 32);
+    let ly = y + 122;
     for (const line of lines) {
-      ctx.fillText(line, PAD + 36, ly);
-      ly += 36;
+      ctx.fillText(line, PAD + 40, ly);
+      ly += 44;
     }
     y += boxH;
   }
 
-  y += 56;
+  y += 64;
 
   /* ---- crop to content ---- */
   const out = document.createElement('canvas');
