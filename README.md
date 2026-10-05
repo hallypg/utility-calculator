@@ -157,8 +157,17 @@ available"** prompt when one is ready. The running version is left alone until
 the person taps, so an update never swaps files out while someone is part-way
 through entering a bill. Tapping applies it and reloads.
 
-To force a check by hand, fully close the app — App Switcher on iPhone, Recents
-on Android — and reopen it.
+**Settings → App → Check for updates** asks the server on demand, reporting
+either the update prompt or that this is the latest version. The version it
+shows above the button is what a user should quote when reporting a problem,
+since a stale build and a real bug look identical from the outside.
+
+Failing that, fully closing the app — App Switcher on iPhone, Recents on
+Android — and reopening it forces a check too.
+
+In a browser that has no service worker (Chrome, Firefox and Edge on iOS, which
+all use WKWebView without the browser entitlement) the button simply reloads,
+since nothing is cached by the app there in the first place.
 
 Deleting and re-adding the home-screen icon also forces an update, but it
 **destroys the stored records**, because a home-screen app's storage goes with

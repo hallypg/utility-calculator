@@ -51,6 +51,23 @@ try {
       CURRENT, { timeout: 15000 });
   });
 
+  await step('the Settings button finds a shipped update', async () => {
+    // Undo the swap, so the next check has something new to find again.
+    fs.writeFileSync(SW, original);
+    await page.goto(BASE + '/index.html#/settings', { waitUntil: 'networkidle' });
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForSelector('#check-updates');
+
+    fs.writeFileSync(SW, original.replace(CURRENT, NEXT + '-again'));
+    await page.click('#check-updates');
+    await page.waitForSelector('.toast.tappable.show', { timeout: 20000 });
+
+    // Put the worker back where the remaining steps expect it.
+    fs.writeFileSync(SW, original.replace(CURRENT, NEXT));
+    await page.goto(BASE + '/index.html', { waitUntil: 'networkidle' });
+    await page.evaluate(() => { window.__notReloaded = true; });
+  });
+
   await step('the page is left alone until tapped', async () => {
     if (!(await page.evaluate(() => window.__notReloaded === true)))
       throw new Error('the page reloaded on its own');

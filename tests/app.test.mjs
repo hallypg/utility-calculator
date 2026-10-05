@@ -358,6 +358,22 @@ await step('adjustments are gone from the form, the maths and storage', async ()
     throw new Error('adjustment fields survived in storage');
 });
 
+await step('checking for updates reports being current', async () => {
+  await page.goto(BASE + '/index.html#/settings');
+  await page.waitForSelector('#check-updates');
+  if (!(await page.textContent('#app')).includes('v'))
+    throw new Error('no version shown in Settings');
+  // Let any toast from an earlier step clear first.
+  await page.waitForFunction(() => !document.querySelector('.toast.show'),
+    null, { timeout: 8000 }).catch(() => {});
+  await page.click('#check-updates');
+  await page.waitForFunction(
+    () => /latest version/i.test(document.querySelector('.toast.show')?.textContent || ''),
+    null, { timeout: 15000 });
+  if (await page.locator('#check-updates').isDisabled())
+    throw new Error('button left disabled after the check');
+});
+
 await step('the backup reminder is only in Settings', async () => {
   await page.goto(BASE + '/index.html#/units');
   await page.waitForSelector('.summary');

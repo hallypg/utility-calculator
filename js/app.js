@@ -799,11 +799,19 @@ function viewSettings() {
         <input type="file" id="restore-file" accept="application/json,.json" hidden>
       </div>
 
+      <div class="eyebrow">${esc(t('set.app'))}</div>
+      <div class="card stack">
+        <div class="row between">
+          <span class="muted" style="font-weight:600">${esc(t('set.version', { v: APP_VERSION }))}</span>
+        </div>
+        <button class="btn block" id="check-updates">${esc(t('set.checkUpdates'))}</button>
+      </div>
+
       <div class="eyebrow">${esc(t('set.danger'))}</div>
       <div class="card">
         <button class="btn danger block" id="wipe">${esc(t('set.wipe'))}</button>
       </div>
-      <p class="tiny" style="text-align:center;margin:18px 0 0">${esc(t('set.footer'))} · ${esc(APP_VERSION)}</p>`,
+      <p class="tiny" style="text-align:center;margin:18px 0 0">${esc(t('set.footer'))}</p>`,
     mount() {
       app.querySelectorAll('[data-lang]').forEach(btn =>
         btn.addEventListener('click', () => {
@@ -858,6 +866,7 @@ function viewSettings() {
         render();
       });
 
+      document.getElementById('check-updates').addEventListener('click', e => checkForUpdates(e.currentTarget));
       document.getElementById('backup').addEventListener('click', backup);
       document.getElementById('csv2').addEventListener('click', exportCsv);
 
@@ -1034,6 +1043,48 @@ render();
 
 /* A home-screen app has no reload button, so it has to offer the update itself.
    The new worker sits in "waiting" until the person taps. */
+/* Asks the server whether a newer build exists. When one does, the worker
+   installs it and controllerchange raises the usual prompt, so this only has
+   to report the "nothing new" case itself. */
+async function checkForUpdates(btn) {
+  const label = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = t('set.checking');
+
+  const done = msg => {
+    btn.disabled = false;
+    btn.textContent = label;
+    if (msg) toast(msg);
+  };
+
+  // Without a service worker there is nothing cached to be stale; a reload
+  // fetches whatever the server has.
+  if (!('serviceWorker' in navigator)) {
+    location.reload();
+    return;
+  }
+
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (!reg) { location.reload(); return; }
+
+    let found = false;
+    const onFound = () => { found = true; };
+    reg.addEventListener('updatefound', onFound);
+    await reg.update();
+
+    // Installing is asynchronous; give it a moment before calling it current.
+    await new Promise(r => setTimeout(r, 1500));
+    reg.removeEventListener('updatefound', onFound);
+
+    // When one was found, the update prompt is already on screen.
+    done(found ? '' : t('set.upToDate'));
+  } catch (err) {
+    console.warn('update check failed', err);
+    done(t('set.checkFailed'));
+  }
+}
+
 if ('serviceWorker' in navigator) {
   // Tracks whether a worker was already in charge, so the very first install
   // does not announce itself as an update while later ones do.
