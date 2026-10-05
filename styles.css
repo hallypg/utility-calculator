@@ -398,7 +398,7 @@ main.has-bar { padding-bottom: calc(176px + env(safe-area-inset-bottom)); }
 .unit-foot .amount {
   width: 100%;
   text-align: right;
-  font-size: 17px;
+  font-size: inherit;   /* the same size as the "Last invoice" label */
   color: var(--ink);
 }
 .chev { width: 20px; height: 20px; flex: none; color: var(--muted); }
