@@ -579,6 +579,7 @@ function viewInvoice(billId) {
     bar: true,
     actions: `<a class="btn sm" href="#/bill/${bill.unitId}/${bill.month}">${ICON.edit} ${esc(t('common.edit'))}</a>`,
     body: `
+      ${bill.paid ? `<div class="banner ok">${ICON.check}<span>${esc(t('invoice.paidInFull'))}</span></div>` : ''}
       <div class="card invoice-card">
         <div class="invoice-head">
           <div class="meta"><span>${esc(t('invoice.title').toUpperCase())}</span><span>${esc(invoiceNumber(u, bill.month))}</span></div>
@@ -626,8 +627,7 @@ function viewInvoice(billId) {
         <button class="btn block" id="copy-text" style="margin-top:8px">${ICON.copy} ${esc(t('invoice.copy'))}</button>
       </details>`,
     actionbar: bill.paid
-      ? `<div class="paid-banner" style="margin-bottom:10px">${ICON.check} ${esc(t('invoice.paidInFull'))}</div>
-         <div class="two">
+      ? `<div class="two">
            <button class="btn" id="mark-paid">${esc(t('invoice.markUnpaid'))}</button>
            <button class="btn primary" id="share-img">${ICON.share} ${esc(t('invoice.sendShort'))}</button>
          </div>`

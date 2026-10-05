@@ -410,6 +410,10 @@ main.has-bar { padding-bottom: calc(176px + env(safe-area-inset-bottom)); }
   margin: 8px 0 4px; font-variant-numeric: tabular-nums;
 }
 .invoice-head .foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+/* The band is brand-coloured in both themes, so these pills carry fixed light
+   fills; the translucent tokens let the purple through and went unreadable. */
+.invoice-head .pill.done { background: #E3F3EC; color: #047857; }
+.invoice-head .pill.unpaid { background: #FEF2F2; color: #B91C1C; }
 .invoice-head .due { font-size: 14px; opacity: .85; }
 .invoice-grid {
   display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
@@ -438,13 +442,6 @@ main.has-bar { padding-bottom: calc(176px + env(safe-area-inset-bottom)); }
   font-size: 13px; color: var(--muted); white-space: pre-wrap;
 }
 .paybox .t { display: block; font-size: 13px; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
-.paid-banner {
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-  min-height: var(--tap); border-radius: 12px;
-  background: color-mix(in srgb, var(--ok) 15%, transparent);
-  color: var(--ok); font-weight: 800;
-}
-.paid-banner svg { width: 20px; height: 20px; }
 
 /* Settings pieces */
 .rowlist { padding: 0; overflow: hidden; }

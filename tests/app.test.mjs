@@ -234,6 +234,16 @@ await step('marking paid flows through to the units screen', async () => {
     (await import('./js/store.js')).State.data.bills[0].paid);
   if (paid !== true) throw new Error('bill not marked paid');
 
+  // The confirmation is a banner above the invoice, not part of the bar.
+  const banner = page.locator('#app .banner.ok');
+  if (!(await banner.count())) throw new Error('no paid banner above the invoice');
+  if (!/paid in full/i.test(await banner.textContent()))
+    throw new Error('banner reads "' + (await banner.textContent()).trim() + '"');
+  const [by, cy] = [await banner.boundingBox(), await page.locator('.invoice-card').boundingBox()];
+  if (!(by.y < cy.y)) throw new Error('the banner is not above the invoice');
+  if (await page.locator('#actionbar .banner').count())
+    throw new Error('the confirmation is still in the action bar');
+
   await page.goto(BASE + '/index.html#/units');
   await page.waitForSelector('.summary');
   const sum = (await page.textContent('.summary')).replace(/\s+/g, ' ');
