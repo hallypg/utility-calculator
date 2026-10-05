@@ -2,7 +2,7 @@
 
 import { locale, getLang, SHORT_MONTH, SHORT_DATE } from './i18n.js';
 
-export const APP_VERSION = 'v36';
+export const APP_VERSION = 'v37';
 
 const STORAGE_KEY = 'rmu.v1';
 
