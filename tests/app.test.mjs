@@ -213,10 +213,17 @@ await step('editing a bill shows Delete beside Save in the bar', async () => {
   if (await page.locator('#app #del-bill').count())
     throw new Error('Delete is still in the page body');
 
-  // Delete sits to the left of Save.
+  // Delete sits to the left of Save, as a square icon button.
   const [dx, sx] = [await del.boundingBox(), await save.boundingBox()];
   if (!(dx.x < sx.x)) throw new Error(`Delete at ${dx.x} is not left of Save at ${sx.x}`);
   if (Math.abs(dx.y - sx.y) > 2) throw new Error('the two buttons are not on one row');
+  if (Math.abs(dx.width - dx.height) > 1)
+    throw new Error(`Delete is ${dx.width}x${dx.height}, not square`);
+  if ((await del.textContent()).trim() !== '')
+    throw new Error('Delete still carries a text label');
+  if (!(await del.locator('svg').count())) throw new Error('Delete has no icon');
+  if (!(await del.getAttribute('aria-label')))
+    throw new Error('icon-only Delete has no accessible name');
 
   // A new bill has nothing to delete.
   await page.goto(BASE + '/index.html#/bill/' + bill.unitId + '/new');
