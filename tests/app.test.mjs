@@ -99,7 +99,7 @@ await step('a fresh form shows no error before anything is typed', async () => {
   await page.waitForSelector('#b-elecCurr');
 });
 
-await step('backwards reading is reported on Save, not while typing', async () => {
+await step('backwards reading is reported on Save only', async () => {
   await page.fill('#b-elecCurr', '4100');
   await page.waitForTimeout(250);
   if (await page.locator('#elec-err .field-err').count())
@@ -109,10 +109,11 @@ await step('backwards reading is reported on Save, not while typing', async () =
   await page.waitForSelector('#elec-err .field-err');
   if (page.url().includes('/invoice/')) throw new Error('saved despite a backwards reading');
 
-  // Once reported, it tracks the field and clears when corrected.
+  // Correcting the reading leaves the message alone; only Save re-evaluates.
   await page.fill('#b-elecCurr', '4512');
-  await page.waitForTimeout(150);
-  if (await page.locator('#elec-err .field-err').count()) throw new Error('error did not clear');
+  await page.waitForTimeout(200);
+  if (!(await page.locator('#elec-err .field-err').count()))
+    throw new Error('message cleared while typing instead of on Save');
 });
 
 await step('save bill then the invoice screen renders', async () => {

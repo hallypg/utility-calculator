@@ -449,9 +449,9 @@ function viewBill(unitId, month, forceNew) {
       const form = document.getElementById('bill-form');
       const read = () => ({ ...b, ...Object.fromEntries(new FormData(form)) });
 
-      // Errors stay out of the way until Save is pressed, then follow the
-      // fields live so they clear as soon as the reading is corrected.
-      let showErrors = false;
+      // Only Save evaluates the readings. What it found is held here and
+      // rendered as-is, so typing never raises or clears a message.
+      let shownErrors = {};
       const entered = v => String(v ?? '').trim() !== '';
 
       const problems = d => {
@@ -474,10 +474,9 @@ function viewBill(unitId, month, forceNew) {
         document.getElementById('water-amt').textContent = money(c.waterAmount);
         document.getElementById('bill-total').textContent = money(c.total);
 
-        const errs = showErrors ? Object.fromEntries(problems(d)) : {};
         for (const kind of ['elec', 'water']) {
-          document.getElementById(`${kind}-err`).innerHTML = errs[kind]
-            ? `<div class="field-err" style="margin:0 0 12px">${esc(errs[kind])}</div>` : '';
+          document.getElementById(`${kind}-err`).innerHTML = shownErrors[kind]
+            ? `<div class="field-err" style="margin:0 0 12px">${esc(shownErrors[kind])}</div>` : '';
         }
       };
 
@@ -488,9 +487,9 @@ function viewBill(unitId, month, forceNew) {
         e.preventDefault();
         const d = read();
         const found = problems(d);
+        shownErrors = Object.fromEntries(found);
+        refresh();
         if (found.length) {
-          showErrors = true;
-          refresh();
           toast(t('bill.fixFirst'));
           document.getElementById(`${found[0][0]}-err`)
             .scrollIntoView({ behavior: 'smooth', block: 'center' });
