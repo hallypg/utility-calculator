@@ -378,12 +378,12 @@ function viewBill(unitId, month, forceNew) {
         <div class="field" style="margin-bottom:12px">
           <label for="${prevId}">${esc(t('bill.lastMonth'))}</label>
           <input id="${prevId}" name="${prevId.slice(2)}" type="number" inputmode="decimal" step="any" min="0" required
-                 placeholder="${esc(unitLabel)}" value="${esc(money0(prevVal))}">
+                 placeholder="0" value="${esc(money0(prevVal))}">
         </div>
         <div class="field" style="margin-bottom:12px">
           <label for="${currId}">${esc(t('bill.thisMonth'))}</label>
           <input id="${currId}" name="${currId.slice(2)}" type="number" inputmode="decimal" step="any" min="0" required
-                 placeholder="${esc(unitLabel)}" value="${esc(money0(currVal))}">
+                 placeholder="0" value="${esc(money0(currVal))}">
         </div>
       </div>
       <div class="field" style="margin-bottom:12px">

@@ -68,6 +68,15 @@ await step('rates prefill the new bill', async () => {
   if (rent !== '1200') throw new Error('rent not prefilled: ' + rent);
 });
 
+await step('reading fields hint at a number, not a unit', async () => {
+  for (const [id, unit] of [['#b-elecPrev', 'kWh'], ['#b-elecCurr', 'kWh'],
+                            ['#b-waterPrev', 'm³'], ['#b-waterCurr', 'm³']]) {
+    const ph = await page.getAttribute(id, 'placeholder');
+    if (ph === unit) throw new Error(id + ' placeholder is the unit "' + ph + '"');
+    if (ph !== '0') throw new Error(id + ' placeholder is "' + ph + '"');
+  }
+});
+
 await step('live total is correct', async () => {
   await page.fill('#b-elecPrev', '4200');
   await page.fill('#b-elecCurr', '4512');
