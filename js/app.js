@@ -149,7 +149,7 @@ function viewHome() {
               : t('home.due', { date: fmtDayMonth(dueDate(x.bill)) }))}</span>
           </div>
           <button class="btn block ok" data-pay="${x.bill.id}">
-            ${ICON.check} ${esc(t('home.markPaid'))}
+            ${ICON.check} ${esc(t('invoice.markPaid'))}
           </button>
         </div>`).join('')}</div>` : ''}
     </div>`;
@@ -170,7 +170,7 @@ function viewHome() {
             <span class="pill todo">${esc(t('home.notBilled'))}</span>
           </a>`).join('')}</div>
         <button class="btn primary block" id="start-run" style="margin-top:16px">
-          ${ICON.check} ${esc(t('home.createBills', { n: waiting.length, s: plural(waiting.length) }))}
+          ${ICON.plus} ${esc(t('home.createBills', { n: waiting.length, s: plural(waiting.length) }))}
         </button>` : ''}
     </div>`;
 
