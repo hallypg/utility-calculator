@@ -444,9 +444,10 @@ function viewBill(unitId, month, forceNew) {
     issuedOn: new Date().toISOString().slice(0, 10)
   };
 
-  const carried = !existing && open.fromMonth
-    ? `<div class="banner info">${ICON.warn}<span>${esc(t('bill.carried', { month: monthShort(open.fromMonth) }))}</span></div>`
+  const carriedNote = from => from
+    ? `<div class="banner info">${ICON.warn}<span>${esc(t('bill.carried', { month: monthShort(from) }))}</span></div>`
     : '';
+  const carried = existing ? '' : carriedNote(open.fromMonth);
 
   const utility = (kind, icon, unitLabel, prevId, currId, rateId, prevVal, currVal, rateVal) => `
     <div class="card">
@@ -485,7 +486,7 @@ function viewBill(unitId, month, forceNew) {
     back: `#/unit/${unitId}`,
     bar: true,
     body: `
-      ${carried}
+      <div id="carried-slot">${carried}</div>
       <form id="bill-form">
         <div class="card">
           <div class="field" style="margin-bottom:0">
@@ -499,7 +500,7 @@ function viewBill(unitId, month, forceNew) {
 
         <div class="card">
           <div class="field" style="margin-bottom:6px">
-            <label for="b-rent" style="font-size:16px;font-weight:800;color:var(--ink)">${esc(t('bill.rentFor', { month: monthLabel(shiftMonth(month, 1)) }))}</label>
+            <label for="b-rent" id="b-rent-head" style="font-size:16px;font-weight:800;color:var(--ink)">${esc(t('bill.rentFor', { month: monthLabel(shiftMonth(month, 1)) }))}</label>
             <p class="tiny" style="margin:0 0 8px">${esc(t('bill.rentHint'))}</p>
             <input id="b-rent" name="rent" type="number" inputmode="decimal" step="any" min="0" required value="${esc(money0(b.rent))}">
           </div>
@@ -507,7 +508,7 @@ function viewBill(unitId, month, forceNew) {
       </form>`,
     actionbar: `
       <div class="totals">
-        <span class="lbl">${esc(t('bill.totalFor', { month: monthShort(month) }))}</span>
+        <span class="lbl" id="total-lbl">${esc(t('bill.totalFor', { month: monthShort(month) }))}</span>
         <span class="val" id="bill-total">—</span>
       </div>
       ${existing
@@ -560,6 +561,49 @@ function viewBill(unitId, month, forceNew) {
           document.getElementById(id).focus();
         }));
 
+      /* The form is drawn for one month, but the picker can choose another.
+         Everything that names a month has to follow it -- above all the
+         opening readings, which belong to the month being billed and not to
+         the one the form happened to open on. */
+      const monthInput = document.getElementById('b-month');
+      const prevFields = { elec: 'b-elecPrev', water: 'b-waterPrev' };
+      const typedOver = { elec: false, water: false };
+
+      for (const [kind, id] of Object.entries(prevFields)) {
+        // A programmatic value change raises no input event, so anything
+        // heard here was typed by hand and must not be overwritten.
+        document.getElementById(id).addEventListener('input', () => { typedOver[kind] = true; });
+      }
+
+      let shownMonth = b.month;
+      const followMonth = () => {
+        const m = monthInput.value;
+        if (m === shownMonth) return;
+        shownMonth = m;
+
+        document.getElementById('b-rent-head').textContent =
+          t('bill.rentFor', { month: monthLabel(shiftMonth(m, 1)) });
+        document.getElementById('total-lbl').textContent =
+          t('bill.totalFor', { month: monthShort(m) });
+
+        // An existing bill keeps the readings it was saved with; only a new
+        // bill's prefill belongs to whichever month is chosen.
+        if (existing) return;
+
+        const next = openingReadings(unitId, m);
+        document.getElementById('carried-slot').innerHTML = carriedNote(next.fromMonth);
+        for (const [kind, id] of Object.entries(prevFields)) {
+          if (typedOver[kind]) continue;
+          const field = document.getElementById(id);
+          field.value = money0(kind === 'elec' ? next.elecPrev : next.waterPrev);
+          b[`${kind}Prev`] = field.value;
+        }
+        // A reading judged backwards against the old month says nothing
+        // about this one.
+        shownErrors = {};
+      };
+
+      monthInput.addEventListener('input', followMonth);
       form.addEventListener('input', refresh);
       refresh();
 

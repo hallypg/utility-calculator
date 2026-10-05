@@ -767,6 +767,98 @@ await step('the bill run walks on to the next unit that needs one', async () => 
   }
 });
 
+await step('the form follows the month picker, prefill and all', async () => {
+  const snapshot = await page.evaluate(() => localStorage.getItem('rmu.v1'));
+  try {
+    // January closes at 100, March at 300, with February missing.
+    const unit = await page.evaluate(async () => {
+      const s = await import('./js/store.js');
+      const d = s.State.data;
+      const u = d.units[0].id;
+      const bill = (id, month, ep, ec, wp, wc) => ({
+        id, unitId: u, month, issuedOn: month + '-28',
+        elecPrev: ep, elecCurr: ec, waterPrev: wp, waterCurr: wc,
+        elecRate: 1, waterRate: 1, rent: 100, paid: true
+      });
+      d.bills = [bill('jan', '2026-01', 0, 100, 0, 10), bill('mar', '2026-03', 100, 300, 10, 30)];
+      s.State.save();
+      return u;
+    });
+
+    await page.goto(BASE + '/index.html#/bill/' + unit + '/new');
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForSelector('#b-elecPrev');
+
+    const pick = async (m, y) => {
+      await page.selectOption('#b-month-m', m);
+      if (y) await page.selectOption('#b-month-y', y);
+      await page.waitForTimeout(200);
+    };
+    const shown = async () => ({
+      elecPrev: await page.inputValue('#b-elecPrev'),
+      waterPrev: await page.inputValue('#b-waterPrev'),
+      banner: (await page.textContent('#carried-slot')).replace(/\s+/g, ' ').trim(),
+      rent: (await page.textContent('#b-rent-head')).trim(),
+      total: (await page.textContent('#total-lbl')).trim()
+    });
+
+    // February belongs to January's closing readings, not March's.
+    await pick('02', '2026');
+    let v = await shown();
+    if (v.elecPrev !== '100' || v.waterPrev !== '10')
+      throw new Error('February opened at ' + v.elecPrev + '/' + v.waterPrev + ', expected 100/10');
+    if (!/Jan 2026/.test(v.banner)) throw new Error('the carried-over note reads: ' + v.banner);
+    if (!/March 2026/.test(v.rent)) throw new Error('rent heading reads: ' + v.rent);
+    if (!/Feb 2026/.test(v.total)) throw new Error('total label reads: ' + v.total);
+
+    // January has nothing before it, so it opens on the unit's own figures
+    // and claims no month to have carried them from.
+    await pick('01');
+    v = await shown();
+    if (v.banner) throw new Error('a carried-over note with no earlier bill: ' + v.banner);
+
+    // Typing over an opening must survive the next month change; the field
+    // left alone must still follow.
+    await page.fill('#b-elecPrev', '42');
+    await pick('02');
+    v = await shown();
+    if (v.elecPrev !== '42') throw new Error('a typed opening was overwritten: ' + v.elecPrev);
+    if (v.waterPrev !== '10') throw new Error('the untouched opening did not follow: ' + v.waterPrev);
+
+    // The reading this used to reject as backwards now saves against the
+    // right month.
+    await page.goto(BASE + '/index.html#/bill/' + unit + '/new');
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForSelector('#b-elecPrev');
+    await pick('02', '2026');
+    await page.fill('#b-elecCurr', '250');
+    await page.fill('#b-waterCurr', '25');
+    await page.click('#actionbar button[type="submit"]');
+    await page.waitForTimeout(500);
+    const feb = await page.evaluate(async () => {
+      const s = await import('./js/store.js');
+      const b = s.State.data.bills.find(x => x.month === '2026-02');
+      return b ? `${b.elecPrev}->${b.elecCurr}` : 'not saved';
+    });
+    if (feb !== '100->250') throw new Error('February saved as ' + feb);
+
+    // An existing bill keeps the readings it was saved with, whatever month
+    // it is moved to; only the labels follow.
+    await page.goto(BASE + '/index.html#/bill/' + unit + '/2026-03');
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForSelector('#b-elecPrev');
+    await pick('05');
+    v = await shown();
+    if (v.elecPrev !== '100')
+      throw new Error('editing rewrote a saved opening: ' + v.elecPrev);
+    if (!/May 2026/.test(v.total)) throw new Error('total label did not follow: ' + v.total);
+  } finally {
+    await page.evaluate(raw => localStorage.setItem('rmu.v1', raw), snapshot);
+    await page.goto(BASE + '/index.html#/units');
+    await page.reload({ waitUntil: 'networkidle' });
+  }
+});
+
 await step('the tab bar is home, units and settings', async () => {
   await page.goto(BASE + '/index.html#/units');
   await page.waitForSelector('.tabbar');

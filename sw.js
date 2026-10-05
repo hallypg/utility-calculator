@@ -1,6 +1,6 @@
 /* Caches the app shell so it opens with no connection at all.
    Bump CACHE when any shell file changes. */
-const CACHE = 'rental-utility-v48';
+const CACHE = 'rental-utility-v49';
 
 const SHELL = [
   './',
