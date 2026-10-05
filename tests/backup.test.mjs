@@ -82,9 +82,15 @@ await step('wiping then restoring brings everything back', async () => {
   await page.waitForSelector('#restore-file', { state: 'attached' });
 
   // The confirmation is rendered in the page, in the app's own language.
+  if (await page.locator('#restore-confirm').isVisible())
+    throw new Error('restore confirmation is showing before it was asked for');
   await page.click('#restore');
-  if (await page.locator('#restore-confirm').isHidden())
+  if (!(await page.locator('#restore-confirm').isVisible()))
     throw new Error('in-page restore confirmation did not open');
+  await page.click('#restore-cancel');
+  if (await page.locator('#restore-confirm').isVisible())
+    throw new Error('cancel did not close the confirmation');
+  await page.click('#restore');
   await page.setInputFiles('#restore-file', backupPath);
   await page.waitForTimeout(600);
 

@@ -33,7 +33,7 @@ await step('save settings', async () => {
   await page.fill('#s-cur', 'RM');
   await page.fill('#s-due', '15');
   await page.fill('#s-note', 'Bank transfer to Maybank 5141-2233-9087. Thank you!');
-  await page.click('#set-form button[type="submit"]');
+  await page.click('#topbar button[type="submit"]');
   await page.waitForSelector('.toast.show');
 });
 

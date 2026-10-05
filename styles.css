@@ -476,5 +476,6 @@ main.has-bar { padding-bottom: calc(176px + env(safe-area-inset-bottom)); }
   background: var(--danger-soft); border-radius: 14px; padding: 14px 16px;
   display: flex; flex-direction: column; gap: 12px;
 }
+.confirm[hidden] { display: none; }
 .confirm p { margin: 0; font-size: 14px; color: var(--danger); line-height: 1.45; }
 .confirm .two { gap: 8px; }

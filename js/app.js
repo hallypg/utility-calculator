@@ -707,6 +707,7 @@ function viewSettings() {
 
   return {
     title: t('set.title'),
+    actions: `<button class="btn sm primary" type="submit" form="set-form">${esc(t('set.save'))}</button>`,
     body: `
       <div class="eyebrow">${esc(t('set.language'))}</div>
       <div class="card rowlist">
@@ -780,8 +781,6 @@ function viewSettings() {
             <textarea id="s-note" name="invoiceNote" placeholder="${esc(t('set.notePh'))}">${esc(s.invoiceNote)}</textarea>
           </div>
         </div>
-
-        <button class="btn primary block" type="submit">${esc(t('set.save'))}</button>
       </form>
 
       <div class="eyebrow">${esc(t('set.data'))}</div>

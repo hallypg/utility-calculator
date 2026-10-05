@@ -182,7 +182,7 @@ const STRINGS = {
     'set.symbolAfter': 'Show symbol after the amount',
     'set.note': 'Footer note',
     'set.notePh': 'e.g. Bank transfer to 1234-5678. Thank you!',
-    'set.save': 'Save settings',
+    'set.save': 'Save',
     'set.saved': 'Settings saved',
 
     'set.data': 'Your data',
@@ -400,7 +400,7 @@ const STRINGS = {
     'set.symbolAfter': 'Hiện ký hiệu sau số tiền',
     'set.note': 'Ghi chú cuối hóa đơn',
     'set.notePh': 'VD: Chuyển khoản Vietcombank 0123456789. Xin cảm ơn!',
-    'set.save': 'Lưu cài đặt',
+    'set.save': 'Lưu',
     'set.saved': 'Đã lưu cài đặt',
 
     'set.data': 'Dữ liệu của bạn',

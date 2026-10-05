@@ -41,7 +41,7 @@ await step('vi: full flow in Vietnamese', async () => {
   await vi.fill('#s-er', '3500');
   await vi.fill('#s-wr', '15000');
   await vi.fill('#s-note', 'Chuyển khoản Vietcombank 0123456789. Xin cảm ơn!');
-  await vi.click('#set-form button[type="submit"]');
+  await vi.click('#topbar button[type="submit"]');
   await vi.waitForSelector('.toast.show');
 
   await vi.click('[data-tab="units"]');
