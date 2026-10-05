@@ -325,7 +325,7 @@ const STRINGS = {
 
     'units.title': 'Căn hộ của tôi',
     'units.count': '{n} căn hộ',
-    'units.lastInvoice': 'Hóa đơn',
+    'units.lastInvoice': 'Hóa đơn gần nhất',
     'units.noInvoice': 'Chưa có hóa đơn',
     'units.perMonth': '{amount}/tháng',
     'units.empty': 'Chưa có căn hộ nào.<br>Thêm căn hộ đầu tiên để bắt đầu.',

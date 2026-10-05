@@ -554,11 +554,19 @@ await step('a unit card carries its newest invoice', async () => {
   const cards = await page.$$eval('.unit-card', els => els.length);
   if (cards !== 3) throw new Error(cards + ' cards for 3 units');
 
-  const rows = await page.$$eval('.unit-card', els => els.map(e => ({
-    head: e.querySelector('.unit-row').textContent.replace(/\s+/g, ' ').trim(),
-    foot: e.querySelector('.unit-foot').textContent.replace(/\s+/g, ' ').trim(),
-    pill: e.querySelector('.unit-foot .pill')?.className || ''
-  })));
+  const rows = await page.$$eval('.unit-card', els => els.map(e => {
+    const pill = e.querySelector('.unit-foot .pill');
+    const amount = e.querySelector('.unit-foot .amount');
+    return {
+      head: e.querySelector('.unit-row').textContent.replace(/\s+/g, ' ').trim(),
+      foot: e.querySelector('.unit-foot').textContent.replace(/\s+/g, ' ').trim(),
+      pill: pill?.className || '',
+      // How far the amount sits below the pill it follows.
+      drop: pill && amount
+        ? amount.getBoundingClientRect().top - pill.getBoundingClientRect().bottom
+        : null
+    };
+  }));
 
   // Tenant and rent read as one line under the unit's name.
   if (!/Sarah Lim · RM[\d,.]+\/month/.test(rows[0].head))
@@ -575,6 +583,11 @@ await step('a unit card carries its newest invoice', async () => {
   // A unit with no bill says so, and carries no pill or amount.
   if (!/No invoice yet/.test(rows[2].foot)) throw new Error('the empty footer reads: ' + rows[2].foot);
   if (rows[2].pill) throw new Error('a never-billed unit carries a payment pill');
+
+  // The amount sits on a line of its own, under the pill, not beside it.
+  for (const r of rows.filter(r => r.drop !== null)) {
+    if (!(r.drop > 0)) throw new Error('the amount is still on the pill\'s line: ' + r.foot);
+  }
 
   // The month beside an invoice this year is the month alone; a card must
   // stay on one line rather than trailing off in an ellipsis.
