@@ -65,6 +65,8 @@ const STRINGS = {
     'set.backupHint': 'Saves all units, tenants, bills and settings to one file. Keep it in your files, cloud drive, or email it to yourself.',
     'set.neverBackedUp': 'Never',
 
+    'common.edit': 'Edit',
+
     'tab.units': 'Units',
     'tab.history': 'History',
     'tab.settings': 'Settings',
@@ -131,7 +133,7 @@ const STRINGS = {
     'invoice.title': 'Invoice',
     'invoice.send': 'Send invoice image',
     'invoice.copy': 'Copy as text',
-    'invoice.edit': 'Edit',
+
     'invoice.due': 'Due {date}',
     'invoice.saved': 'Image saved to your downloads',
     'invoice.shared': 'Shared',
@@ -280,6 +282,8 @@ const STRINGS = {
     'set.backupHint': 'Lưu toàn bộ căn hộ, người thuê, hóa đơn và cài đặt vào một tệp. Hãy giữ trong máy, ổ đĩa đám mây hoặc gửi email cho chính mình.',
     'set.neverBackedUp': 'Chưa bao giờ',
 
+    'common.edit': 'Sửa',
+
     'tab.units': 'Căn hộ',
     'tab.history': 'Lịch sử',
     'tab.settings': 'Cài đặt',
@@ -346,7 +350,7 @@ const STRINGS = {
     'invoice.title': 'Hóa đơn',
     'invoice.send': 'Gửi ảnh hóa đơn',
     'invoice.copy': 'Sao chép dạng văn bản',
-    'invoice.edit': 'Sửa',
+
     'invoice.due': 'Hạn thanh toán {date}',
     'invoice.saved': 'Đã lưu ảnh vào thư mục tải về',
     'invoice.shared': 'Đã gửi',

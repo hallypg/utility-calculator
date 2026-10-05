@@ -166,6 +166,18 @@ await step('the invoice edit control is a labelled button', async () => {
   if (await edit.locator('svg').count()) throw new Error('edit control is still an icon');
 });
 
+await step('the unit edit control is labelled too', async () => {
+  const unitId = await page.evaluate(async () =>
+    (await import('./js/store.js')).State.data.units[0].id);
+  await page.goto(BASE + '/index.html#/unit/' + unitId);
+  await page.waitForSelector('#topbar');
+  const edit = page.locator('#topbar a[href$="/edit"]');
+  if (!(await edit.count())) throw new Error('no edit control on the unit screen');
+  if ((await edit.textContent()).trim() !== 'Edit')
+    throw new Error('edit control reads "' + (await edit.textContent()).trim() + '"');
+  if (await edit.locator('svg').count()) throw new Error('edit control is still an icon');
+});
+
 await step('the sendable image still renders', async () => {
   const src = await page.evaluate(async () => {
     const inv = await import('./js/invoice.js');
@@ -179,6 +191,10 @@ await step('the sendable image still renders', async () => {
 });
 
 await step('marking paid flows through to the units screen', async () => {
+  const billId = await page.evaluate(async () =>
+    (await import('./js/store.js')).State.data.bills[0].id);
+  await page.goto(BASE + '/index.html#/invoice/' + billId);
+  await page.waitForSelector('#mark-paid');
   await page.click('#mark-paid');
   await page.waitForTimeout(250);
   const paid = await page.evaluate(async () =>
