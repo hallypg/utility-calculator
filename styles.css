@@ -414,10 +414,7 @@ main.has-bar { padding-bottom: calc(176px + env(safe-area-inset-bottom)); }
 .pill.neutral { background: var(--surface-2); color: var(--muted); }
 
 /* Home */
-.home-amount {
-  font-size: 26px; font-weight: 800; letter-spacing: -.02em;
-  font-variant-numeric: tabular-nums;
-}
+.card-title { font-size: 17px; font-weight: 800; }
 .inv-list {
   margin-top: 16px;
   border: 1px solid var(--line);

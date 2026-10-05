@@ -132,15 +132,12 @@ function viewHome() {
     };
   }
 
-  const owedTotal = owed.reduce((sum, x) => sum + x.total, 0);
-
+  /* Heading, then the invoices themselves. Each row carries its own amount,
+     so a grand total above them only repeated what the list already says. */
   const owedCard = `
     <div class="card">
-      <div class="tiny">${esc(t('units.owing'))}</div>
-      <div class="row between" style="align-items:baseline;margin-top:2px">
-        <span class="home-amount">${esc(money(owedTotal))}</span>
-        ${owed.length ? '' : `<span class="muted">${esc(t('units.allPaid'))}</span>`}
-      </div>
+      <div class="card-title">${esc(t('units.owing'))}</div>
+      ${owed.length ? '' : `<div class="muted" style="margin-top:2px">${esc(t('units.allPaid'))}</div>`}
       ${owed.length ? `<div class="inv-list">${owed.map(x => `
         <div class="inv-row inv-grid">
           <a class="inv-link truncate" href="#/invoice/${x.bill.id}">${esc(x.unit.label)} · ${esc(monthShort(x.bill.month))}</a>
@@ -159,7 +156,7 @@ function viewHome() {
 
   const billsCard = `
     <div class="card">
-      <div style="font-size:17px;font-weight:800">${esc(t('home.billsTitle', { month: monthLabel(month) }))}</div>
+      <div class="card-title">${esc(t('home.billsTitle', { month: monthLabel(month) }))}</div>
       <div class="muted" style="margin-top:2px">${esc(waiting.length
         ? t('home.needBill', { n: waiting.length, total: units.length })
         : t('units.allBilled', { month: monthLabel(month) }))}</div>

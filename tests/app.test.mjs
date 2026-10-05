@@ -673,19 +673,21 @@ await step('home leads with what is owed and what still needs a bill', async () 
   });
   await page.goto(BASE + '/index.html#/home');
   await page.reload({ waitUntil: 'networkidle' });
-  await page.waitForSelector('.home-amount');
-
-  // Each bill is 100 rent + 100 electricity + 10 water.
-  const owed = (await page.textContent('.home-amount')).replace(/[^0-9.]/g, '');
-  if (owed !== '420.00') throw new Error('awaiting payment reads ' + owed);
+  await page.waitForSelector('#app .inv-row');
 
   const rows = await page.$$eval('#app .inv-row', els => els.length);
   if (rows !== 3) throw new Error(rows + ' rows, expected two invoices and one unit to bill');
 
-  // The list is the count; spelling it out beside the total was noise.
-  const headline = (await page.textContent('#app .card')).replace(/\s+/g, ' ');
-  if (/\d+ invoices?/.test(headline))
-    throw new Error('the invoice count is still beside the total: ' + headline.slice(0, 80));
+  // Each row carries its own amount; the card states neither a grand total
+  // nor a count above them. Each bill is 100 rent + 100 electricity + 10 water.
+  const amounts = await page.$$eval('#app .inv-row .amount', els =>
+    els.map(e => e.textContent.replace(/[^0-9.]/g, '')));
+  if (JSON.stringify(amounts) !== JSON.stringify(['210.00', '210.00']))
+    throw new Error('row amounts read ' + JSON.stringify(amounts));
+  const headline = (await page.textContent('#app .card .card-title')).replace(/\s+/g, ' ').trim();
+  if (headline !== 'Awaiting payment') throw new Error('the card heading reads: ' + headline);
+  if (await page.locator('.home-amount').count())
+    throw new Error('the grand total is still on the card');
 
   // The pill separates late from merely due; both carry a day and month,
   // never a four-digit year, which would squeeze the heading off its line.
@@ -720,10 +722,10 @@ await step('home marks an invoice paid without leaving the page', async () => {
   if (paid !== true) throw new Error('the bill was not marked paid');
 
   if (!/\/home/.test(page.url())) throw new Error('left home: ' + page.url());
-  const owed = (await page.textContent('.home-amount')).replace(/[^0-9.]/g, '');
-  if (owed !== '210.00') throw new Error('total did not drop, it reads ' + owed);
   if (await page.locator('[data-pay="late"]').count())
     throw new Error('the paid invoice is still listed as awaiting payment');
+  const left = await page.$$eval('#app .inv-row [data-pay]', els => els.length);
+  if (left !== 1) throw new Error(left + ' invoices left awaiting payment, expected 1');
 });
 
 await step('the bill run walks on to the next unit that needs one', async () => {
