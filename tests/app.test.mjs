@@ -9,7 +9,8 @@ const ctx = await browser.newContext({
   viewport: { width: 390, height: 844 },
   deviceScaleFactor: 2,
   isMobile: true,
-  hasTouch: true
+  hasTouch: true,
+  acceptDownloads: true
 });
 const page = await ctx.newPage();
 page.on('pageerror', e => errors.push('PAGEERROR: ' + e.message));
@@ -606,14 +607,32 @@ await step('no headings when every unit is on the same side', async () => {
   await page.reload({ waitUntil: 'networkidle' });
 });
 
-await step('history and CSV', async () => {
-  await page.click('[data-tab="history"]');
-  await page.waitForSelector('text=Month total');
-  const csv = await page.evaluate(async () => {
-    const s = await import('./js/store.js');
-    return s.State.data.bills.length;
-  });
-  if (csv !== 1) throw new Error('unexpected bill count ' + csv);
+await step('the tab bar is units and settings only', async () => {
+  await page.goto(BASE + '/index.html#/units');
+  await page.waitForSelector('.tabbar');
+  const tabs = await page.$$eval('.tabbar a', els => els.map(e => e.dataset.tab));
+  if (JSON.stringify(tabs) !== JSON.stringify(['units', 'settings']))
+    throw new Error('tabs are ' + JSON.stringify(tabs));
+
+  // The old address must not render a blank screen.
+  await page.goto(BASE + '/index.html#/history');
+  await page.waitForTimeout(250);
+  const body = (await page.textContent('#app')).trim();
+  if (!body) throw new Error('#/history renders nothing');
+});
+
+await step('CSV export still covers every bill', async () => {
+  await page.goto(BASE + '/index.html#/settings');
+  await page.waitForSelector('#csv2');
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#csv2')]);
+  const p = SHOT + '/' + dl.suggestedFilename();
+  await dl.saveAs(p);
+  const fs = await import('node:fs');
+  const rows = fs.readFileSync(p, 'utf8').trim().split('\n');
+  const bills = await page.evaluate(async () =>
+    (await import('./js/store.js')).State.data.bills.length);
+  if (rows.length !== bills + 1)
+    throw new Error(`CSV has ${rows.length - 1} rows for ${bills} bills`);
 });
 
 await step('data survives a reload', async () => {

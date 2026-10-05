@@ -29,7 +29,7 @@ storage on the phone it is used on, and nothing is ever sent anywhere.
 - **Invoice image** — *Send image* renders the invoice on the phone and hands it
   to the native share sheet, so it goes into WhatsApp, Messages or email as a
   picture. There is also a plain-text version to copy and paste.
-- **History** — every bill by month, with month totals, plus CSV export.
+- **CSV export** — every bill, from Settings, for record-keeping or tax.
 - **Works offline** — once installed, it opens and works with no connection.
 - **English and Vietnamese** — the app picks the phone's language on first run
   and can be switched any time in Settings. The invoice image is translated too,

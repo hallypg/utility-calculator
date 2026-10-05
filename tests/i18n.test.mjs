@@ -31,7 +31,7 @@ await step('vi: auto-detected from the phone language', async () => {
 
 await step('vi: tab bar is translated', async () => {
   const labels = await vi.$$eval('.tab-label', els => els.map(e => e.textContent));
-  const want = ['Căn hộ', 'Lịch sử', 'Cài đặt'];
+  const want = ['Căn hộ', 'Cài đặt'];
   if (JSON.stringify(labels) !== JSON.stringify(want))
     throw new Error('got ' + JSON.stringify(labels));
 });

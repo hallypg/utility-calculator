@@ -14,7 +14,6 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, ch =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 
 const ICON = {
-  history: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg>',
   back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>',
   plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
   share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13"/><path d="M8 7l4-4 4 4"/><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>',
@@ -679,56 +678,6 @@ function viewInvoice(billId) {
   };
 }
 
-function viewHistory() {
-  const bills = State.data.bills.slice().sort((a, b) => b.month.localeCompare(a.month));
-  if (!bills.length) {
-    return { title: t('history.title'), body: `<div class="empty">${ICON.history}<p>${t('history.empty')}</p></div>` };
-  }
-
-  const groups = {};
-  for (const b of bills) (groups[b.month] ||= []).push(b);
-
-  const body = Object.keys(groups).sort((a, b) => b.localeCompare(a)).map(month => {
-    const rows = groups[month];
-    const total = rows.reduce((sum, b) => sum + compute(b).total, 0);
-    const owed = rows.filter(b => !b.paid).reduce((sum, b) => sum + compute(b).total, 0);
-    return `
-      <div class="eyebrow">${esc(monthLabel(month))}</div>
-      <div class="card">
-        ${rows.map(b => {
-          const u = findUnit(b.unitId);
-          const c = compute(b);
-          return `<a class="hist-row" href="#/invoice/${b.id}" style="text-decoration:none;color:inherit">
-            <span class="grow">
-              <span style="font-weight:600;display:block">${esc(u ? u.label : t('history.deletedUnit'))}</span>
-              <span class="tiny">${esc(t('history.rowSummary', { rent: money(c.rent), elec: money(c.elecAmount), water: money(c.waterAmount) }))}</span>
-            </span>
-            <span style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
-              <span class="amount">${esc(money(c.total))}</span>
-              <span class="pill ${b.paid ? 'done' : 'unpaid'}">${esc(b.paid ? t('units.paid') : t('units.unpaid'))}</span>
-            </span>
-          </a>`;
-        }).join('')}
-        <div class="hist-row" style="border-top:2px solid var(--line);border-bottom:0">
-          <span class="grow" style="font-weight:700">${esc(t('history.monthTotal'))}</span>
-          <span style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
-            <span class="amount">${esc(money(total))}</span>
-            ${owed > 0 ? `<span class="owing">${esc(money(owed))}</span>` : ''}
-          </span>
-        </div>
-      </div>`;
-  }).join('');
-
-  return {
-    title: t('history.title'),
-    sub: t('history.sub', { n: bills.length, s: plural(bills.length) }),
-    body: body + `<button class="btn block" id="csv" style="margin-top:18px">${esc(t('history.exportCsv'))}</button>`,
-    mount() {
-      document.getElementById('csv').addEventListener('click', exportCsv);
-    }
-  };
-}
-
 const CURRENCIES = ['$', '₫', 'RM', '€', '£', '¥', '₹', 'Rp'];
 
 function viewSettings() {
@@ -1009,14 +958,11 @@ const ROUTES = [
   [/^\/bill\/([^/]+)\/new$/, unitId => viewBill(unitId, billingMonth(), true)],
   [/^\/bill\/([^/]+)\/([^/]+)$/, (unitId, month) => viewBill(unitId, month)],
   [/^\/invoice\/([^/]+)$/, id => viewInvoice(id)],
-  [/^\/history$/, viewHistory],
   [/^\/settings$/, viewSettings]
 ];
 
 function currentTab(path) {
-  if (path.startsWith('/history')) return 'history';
-  if (path.startsWith('/settings')) return 'settings';
-  return 'units';
+  return path.startsWith('/settings') ? 'settings' : 'units';
 }
 
 function render() {

@@ -87,7 +87,6 @@ const STRINGS = {
     'common.change': 'Change',
 
     'tab.units': 'Units',
-    'tab.history': 'History',
     'tab.settings': 'Settings',
 
     'units.title': 'My Units',
@@ -171,13 +170,6 @@ const STRINGS = {
     'inv.totalDue': 'Total due',
     'inv.totalDueCaps': 'TOTAL DUE',
 
-    'history.title': 'History',
-    'history.sub': '{n} bill{s}',
-    'history.empty': 'No bills yet.<br>Create one from a unit.',
-    'history.monthTotal': 'Month total',
-    'history.exportCsv': 'Export all as CSV',
-    'history.rowSummary': 'Rent {rent} · Elec {elec} · Water {water}',
-    'history.deletedUnit': 'Deleted unit',
 
     'set.title': 'Settings',
     'set.language': 'Language',
@@ -310,7 +302,6 @@ const STRINGS = {
     'common.change': 'Đổi',
 
     'tab.units': 'Căn hộ',
-    'tab.history': 'Lịch sử',
     'tab.settings': 'Cài đặt',
 
     'units.title': 'Căn hộ của tôi',
@@ -394,13 +385,6 @@ const STRINGS = {
     'inv.totalDue': 'Tổng phải trả',
     'inv.totalDueCaps': 'TỔNG PHẢI TRẢ',
 
-    'history.title': 'Lịch sử',
-    'history.sub': '{n} hóa đơn',
-    'history.empty': 'Chưa có hóa đơn nào.<br>Tạo hóa đơn từ một căn hộ.',
-    'history.monthTotal': 'Tổng tháng',
-    'history.exportCsv': 'Xuất tất cả ra CSV',
-    'history.rowSummary': 'Thuê {rent} · Điện {elec} · Nước {water}',
-    'history.deletedUnit': 'Căn hộ đã xóa',
 
     'set.title': 'Cài đặt',
     'set.language': 'Ngôn ngữ',
