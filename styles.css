@@ -382,7 +382,6 @@ main.has-bar { padding-bottom: calc(176px + env(safe-area-inset-bottom)); }
 .unit-card .muted { font-size: 13.5px; }
 .unit-foot {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: 9px;
   padding: 11px 16px;
@@ -393,13 +392,10 @@ main.has-bar { padding-bottom: calc(176px + env(safe-area-inset-bottom)); }
 .unit-foot b { color: var(--ink); font-weight: 700; white-space: nowrap; flex: none; }
 .unit-foot .grow { flex: 0 1 auto; }
 .unit-foot .pill { margin-left: auto; }
-/* The amount takes the second line to itself, so nothing above it has to
-   give way on a narrow screen. */
 .unit-foot .amount {
-  width: 100%;
-  text-align: right;
   font-size: inherit;   /* the same size as the "Last invoice" label */
   color: var(--ink);
+  white-space: nowrap;
 }
 .chev { width: 20px; height: 20px; flex: none; color: var(--muted); }
 .tile {

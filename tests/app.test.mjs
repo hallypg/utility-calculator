@@ -561,7 +561,7 @@ await step('a unit card carries its newest invoice', async () => {
       head: e.querySelector('.unit-row').textContent.replace(/\s+/g, ' ').trim(),
       foot: e.querySelector('.unit-foot').textContent.replace(/\s+/g, ' ').trim(),
       pill: pill?.className || '',
-      // How far the amount sits below the pill it follows.
+      // How far the amount sits below the pill beside it.
       drop: pill && amount
         ? amount.getBoundingClientRect().top - pill.getBoundingClientRect().bottom
         : null
@@ -584,9 +584,9 @@ await step('a unit card carries its newest invoice', async () => {
   if (!/No invoice yet/.test(rows[2].foot)) throw new Error('the empty footer reads: ' + rows[2].foot);
   if (rows[2].pill) throw new Error('a never-billed unit carries a payment pill');
 
-  // The amount sits on a line of its own, under the pill, not beside it.
+  // Label, month, pill and amount share one line.
   for (const r of rows.filter(r => r.drop !== null)) {
-    if (!(r.drop > 0)) throw new Error('the amount is still on the pill\'s line: ' + r.foot);
+    if (r.drop > 0) throw new Error('the amount dropped to its own line: ' + r.foot);
   }
 
   // The month beside an invoice this year is the month alone; a card must
