@@ -201,6 +201,34 @@ await step('marking paid flows through to the units screen', async () => {
   if (back !== false) throw new Error('could not mark unpaid again');
 });
 
+await step('editing a unit shows the same square Delete in the bar', async () => {
+  const unitId = await page.evaluate(async () =>
+    (await import('./js/store.js')).State.data.units[0].id);
+  await page.goto(BASE + '/index.html#/unit/' + unitId + '/edit');
+  await page.waitForSelector('#f-label');
+
+  const del = page.locator('#actionbar #archive-unit');
+  const save = page.locator('#actionbar button[type="submit"]');
+  if (!(await del.count())) throw new Error('Delete is not in the action bar');
+  if (await page.locator('#app #archive-unit').count())
+    throw new Error('Delete is still in the page body');
+
+  const [dx, sx] = [await del.boundingBox(), await save.boundingBox()];
+  if (!(dx.x < sx.x)) throw new Error('Delete is not left of Save');
+  if (Math.abs(dx.width - dx.height) > 1)
+    throw new Error(`Delete is ${dx.width}x${dx.height}, not square`);
+  if ((await del.textContent()).trim() !== '')
+    throw new Error('Delete still carries a text label');
+  if (!(await del.getAttribute('aria-label')))
+    throw new Error('icon-only Delete has no accessible name');
+
+  // Adding a unit has nothing to delete.
+  await page.goto(BASE + '/index.html#/unit/new');
+  await page.waitForSelector('#f-label');
+  if (await page.locator('#archive-unit').count())
+    throw new Error('Delete shown while adding a unit');
+});
+
 await step('editing a bill shows Delete beside Save in the bar', async () => {
   const bill = await page.evaluate(async () =>
     (await import('./js/store.js')).State.data.bills[0]);

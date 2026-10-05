@@ -246,9 +246,13 @@ function viewUnitForm(id) {
             </div>
           </div>
         </div>`}
-      </form>
-      ${u ? `<button class="btn danger block" id="archive-unit">${esc(t('unit.delete'))}</button>` : ''}`,
-    actionbar: `<button class="btn primary block" type="submit" form="unit-form">${esc(u ? t('unit.save') : t('unit.add'))}</button>`,
+      </form>`,
+    actionbar: u
+      ? `<div class="row" style="gap:10px">
+           <button class="btn danger square" id="archive-unit" aria-label="${esc(t('unit.delete'))}">${ICON.trash}</button>
+           <button class="btn primary grow" type="submit" form="unit-form">${esc(t('unit.save'))}</button>
+         </div>`
+      : `<button class="btn primary block" type="submit" form="unit-form">${esc(t('unit.add'))}</button>`,
     mount() {
       document.getElementById('unit-form').addEventListener('submit', e => {
         e.preventDefault();
