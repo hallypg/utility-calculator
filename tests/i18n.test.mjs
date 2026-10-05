@@ -172,6 +172,12 @@ await step('vi: dates read as 05/10/2026, on screen and on the image', async () 
     return inv.invoiceText(b, st.findUnit(b.unitId));
   });
   if (/thg/i.test(text)) throw new Error('the sent invoice still says thg:\n' + text);
+
+  // "tháng" is part of the long month, so a label must not repeat it.
+  for (const page of [card, text]) {
+    if (/tháng tháng/i.test(page))
+      throw new Error('a month word is doubled: ' + page.match(/.{0,40}tháng tháng.{0,20}/i)[0]);
+  }
 });
 
 await step('vi: switching to English keeps the data', async () => {

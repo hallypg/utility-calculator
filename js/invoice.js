@@ -10,6 +10,9 @@ const INK = '#0F172A';
 const MUTED = '#64748B';
 const LINE = '#E2E8F0';
 const BRAND = '#4F46E5';
+const SURFACE2 = '#F1F5F9';
+const OK = '#047857';
+const DANGER = '#B91C1C';
 const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
 
 const font = (weight, size) => `${weight} ${size}px ${FONT}`;
@@ -44,6 +47,7 @@ function wrap(ctx, text, maxWidth) {
 export function renderInvoice(bill, unit) {
   const s = State.data.settings;
   const c = compute(bill);
+  const paid = !!bill.paid;
 
   // Draw tall, measure where we finished, then crop to fit.
   const scratch = document.createElement('canvas');
@@ -55,131 +59,149 @@ export function renderInvoice(bill, unit) {
   ctx.fillStyle = '#FFFFFF';
   ctx.fillRect(0, 0, W, scratch.height);
 
-  /* ---- header band ---- */
-  const headerH = 172;
+  /* ---- header band: the amount owed, as on the invoice screen ---- */
+  const headerH = 300;
   ctx.fillStyle = BRAND;
   ctx.fillRect(0, 0, W, headerH);
 
-  ctx.fillStyle = '#FFFFFF';
-  ctx.font = font(700, 46);
-  ctx.fillText(t('invoice.title'), PAD, 100);
-
-  ctx.font = font(500, 24);
-  ctx.fillStyle = 'rgba(255,255,255,0.78)';
-  ctx.fillText(monthLabel(bill.month), PAD, 140);
-
+  ctx.fillStyle = 'rgba(255,255,255,0.80)';
+  ctx.font = font(700, 23);
+  const heading = t('invoice.title').toUpperCase();
+  ctx.save();
+  ctx.letterSpacing = '2px';
+  ctx.fillText(heading, PAD, 86);
   ctx.textAlign = 'right';
-  ctx.font = font(600, 24);
-  ctx.fillStyle = 'rgba(255,255,255,0.92)';
-  ctx.fillText(invoiceNumber(unit, bill.month), W - PAD, 100);
+  ctx.fillText(invoiceNumber(unit, bill.month), W - PAD, 86);
+  ctx.restore();
   ctx.textAlign = 'left';
 
-  let y = headerH + 62;
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = font(800, 68);
+  ctx.fillText(money(c.total), PAD, 184);
 
-  /* ---- dates + billed-to ---- */
-  const colR = W / 2 + 40;
-
-  ctx.fillStyle = MUTED;
-  ctx.font = font(600, 22);
-  ctx.fillText(t('inv.billedTo'), PAD, y);
-  ctx.fillText(t('inv.issued'), colR, y);
-
-  y += 38;
-  ctx.fillStyle = INK;
-  ctx.font = font(700, 32);
-  ctx.fillText(unit.tenantName || t('inv.tenant'), PAD, y);
-  ctx.font = font(500, 28);
-  ctx.fillText(fmtDate(bill.issuedOn ? new Date(bill.issuedOn) : new Date()), colR, y);
-
-  y += 36;
-  ctx.fillStyle = MUTED;
   ctx.font = font(500, 26);
-  ctx.fillText(t('inv.unit', { label: unit.label }), PAD, y);
-  ctx.font = font(600, 22);
-  ctx.fillText(t('inv.due'), colR, y + 14);
+  ctx.fillStyle = 'rgba(255,255,255,0.80)';
+  ctx.fillText(t('invoice.due', { date: fmtDate(dueDate(bill)) }), PAD, 240);
 
-  y += 34;
-  if (unit.phone) {
+  // Status pill, matching the one on screen.
+  const pillText = paid ? t('units.paid') : t('units.unpaid');
+  ctx.font = font(700, 24);
+  const pillW = ctx.measureText(pillText).width + 44;
+  const pillH = 48;
+  const pillX = W - PAD - pillW;
+  const pillY = 240 - 34;
+  ctx.fillStyle = paid ? '#E3F3EC' : '#FEF2F2';
+  roundRect(ctx, pillX, pillY, pillW, pillH, pillH / 2);
+  ctx.fill();
+  ctx.fillStyle = paid ? OK : DANGER;
+  ctx.textAlign = 'center';
+  ctx.fillText(pillText, pillX + pillW / 2, pillY + 33);
+  ctx.textAlign = 'left';
+
+  /* ---- who and when ---- */
+  let y = headerH + 62;
+  const colR = W / 2 + 10;
+
+  const pair = (x, label, value, sub) => {
     ctx.fillStyle = MUTED;
-    ctx.font = font(500, 26);
-    ctx.fillText(unit.phone, PAD, y);
-  }
-  ctx.fillStyle = INK;
-  ctx.font = font(500, 28);
-  ctx.fillText(fmtDate(dueDate(bill)), colR, y + 18);
+    ctx.font = font(600, 24);
+    ctx.fillText(label, x, y);
+    ctx.fillStyle = INK;
+    ctx.font = font(700, 31);
+    ctx.fillText(value, x, y + 42);
+    if (sub) {
+      ctx.fillStyle = MUTED;
+      ctx.font = font(400, 26);
+      ctx.fillText(sub, x, y + 80);
+    }
+  };
 
-  y += 76;
+  pair(PAD, t('invoice.billedTo'), unit.tenantName || t('inv.tenant'),
+    [unit.label, unit.address].filter(Boolean).join(', '));
+  pair(colR, t('invoice.issued'),
+    fmtDate(bill.issuedOn ? new Date(bill.issuedOn.replace(/-/g, '/')) : new Date()),
+    t('invoice.forMonth', { month: monthLabel(bill.month) }));
 
-  /* ---- line items ---- */
+  y += 122;
   ctx.strokeStyle = LINE;
   ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.moveTo(PAD, y);
   ctx.lineTo(W - PAD, y);
   ctx.stroke();
-  y += 44;
 
-  const row = (label, detail, amount) => {
+  /* ---- line items ---- */
+  const item = (title, subs, amount) => {
+    y += 38;
     ctx.fillStyle = INK;
-    ctx.font = font(600, 29);
-    ctx.fillText(label, PAD, y);
-
+    ctx.font = font(700, 31);
+    ctx.fillText(title, PAD, y);
     ctx.textAlign = 'right';
-    ctx.font = font(600, 29);
     ctx.fillText(money(amount), W - PAD, y);
     ctx.textAlign = 'left';
 
-    if (detail) {
-      y += 32;
-      ctx.fillStyle = MUTED;
-      ctx.font = font(400, 24);
-      ctx.fillText(detail, PAD, y);
+    ctx.fillStyle = MUTED;
+    ctx.font = font(400, 26);
+    for (const sub of subs.filter(Boolean)) {
+      y += 36;
+      ctx.fillText(sub, PAD, y);
     }
-    y += 46;
+
+    y += 30;
+    ctx.strokeStyle = LINE;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(PAD, y);
+    ctx.lineTo(W - PAD, y);
+    ctx.stroke();
   };
 
-  row(t('inv.rent'), monthLabel(rentMonth(bill)), c.rent);
-  row(
-    t('inv.electricity'),
-    `${num(bill.elecPrev)} → ${num(bill.elecCurr)}  ·  ${num(c.elecUsed)} ${s.elecUnit} × ${money(bill.elecRate)}`,
-    c.elecAmount
-  );
-  row(
-    t('inv.water'),
-    `${num(bill.waterPrev)} → ${num(bill.waterCurr)}  ·  ${num(c.waterUsed)} ${s.waterUnit} × ${money(bill.waterRate)}`,
-    c.waterAmount
-  );
+  item(t('inv.rent'), [monthLabel(rentMonth(bill))], c.rent);
+  item(t('inv.electricity'), [
+    t('invoice.meter', { from: num(bill.elecPrev), to: num(bill.elecCurr) }),
+    t('bill.calc', { used: num(c.elecUsed), unit: s.elecUnit, rate: money(bill.elecRate) })
+  ], c.elecAmount);
+  item(t('inv.water'), [
+    t('invoice.meter', { from: num(bill.waterPrev), to: num(bill.waterCurr) }),
+    t('bill.calc', { used: num(c.waterUsed), unit: s.waterUnit, rate: money(bill.waterRate) })
+  ], c.waterAmount);
 
   /* ---- total ---- */
-  y += 6;
-  const boxH = 108;
-  ctx.fillStyle = '#EEF2FF';
-  roundRect(ctx, PAD, y, W - PAD * 2, boxH, 20);
-  ctx.fill();
-
-  ctx.fillStyle = BRAND;
-  ctx.font = font(700, 30);
-  ctx.fillText(t('inv.totalDue'), PAD + 36, y + 66);
-
+  y += 52;
+  ctx.fillStyle = INK;
+  ctx.font = font(800, 34);
+  ctx.fillText(t('invoice.totalDue'), PAD, y);
   ctx.textAlign = 'right';
-  ctx.font = font(700, 46);
-  ctx.fillText(money(c.total), W - PAD - 36, y + 70);
+  ctx.font = font(800, 44);
+  ctx.fillText(money(c.total), W - PAD, y);
   ctx.textAlign = 'left';
+  y += 40;
 
-  y += boxH + 64;
-
-  /* ---- note ---- */
+  /* ---- how to pay ---- */
   if (s.invoiceNote) {
+    y += 40;
+    ctx.font = font(400, 26);
+    const lines = s.invoiceNote.split('\n').flatMap(l => wrap(ctx, l, W - PAD * 2 - 72));
+    const boxH = 40 + 38 + lines.length * 36 + 32;
+    ctx.fillStyle = SURFACE2;
+    roundRect(ctx, PAD, y, W - PAD * 2, boxH, 22);
+    ctx.fill();
+
+    ctx.fillStyle = INK;
+    ctx.font = font(700, 26);
+    ctx.fillText(t('invoice.howToPay'), PAD + 36, y + 58);
+
     ctx.fillStyle = MUTED;
-    ctx.font = font(400, 24);
-    for (const line of wrap(ctx, s.invoiceNote, W - PAD * 2)) {
-      ctx.fillText(line, PAD, y);
-      y += 34;
+    ctx.font = font(400, 26);
+    let ly = y + 96;
+    for (const line of lines) {
+      ctx.fillText(line, PAD + 36, ly);
+      ly += 36;
     }
-    y += 18;
+    y += boxH;
   }
 
-  y += 24;
+  y += 56;
 
   /* ---- crop to content ---- */
   const out = document.createElement('canvas');

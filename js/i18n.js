@@ -277,7 +277,7 @@ const STRINGS = {
 
     'bill.lastMonth': 'Tháng trước',
     'bill.thisMonth': 'Tháng này',
-    'bill.rentFor': 'Tiền thuê tháng {month}',
+    'bill.rentFor': 'Tiền thuê {month}',
     'bill.rentHint': 'Sửa lại nếu tháng này khác.',
     'bill.totalFor': 'Tổng {month}',
     'bill.calc': '{used} {unit} × {rate}',
@@ -288,7 +288,7 @@ const STRINGS = {
     'invoice.paidInFull': 'Đã thanh toán đủ',
     'invoice.billedTo': 'Người thanh toán',
     'invoice.issued': 'Ngày lập',
-    'invoice.forMonth': 'Cho tháng {month}',
+    'invoice.forMonth': 'Cho {month}',
     'invoice.meter': 'Chỉ số {from} → {to}',
     'invoice.howToPay': 'Cách thanh toán',
     'invoice.totalDue': 'Tổng phải trả',
