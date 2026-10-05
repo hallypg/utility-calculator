@@ -176,6 +176,7 @@ h2:first-child { margin-top: 4px; }
 .btn.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 35%, var(--line)); }
 .btn.block { display: flex; width: 100%; }
 .btn.sm { min-height: 38px; font-size: 14px; padding: 0 13px; border-radius: 10px; }
+.btn.sm svg { width: 16px; height: 16px; }
 .btn.square { width: var(--tap); min-width: var(--tap); padding: 0; flex: none; }
 .btn.square svg { width: 20px; height: 20px; }
 .btn svg { width: 19px; height: 19px; }

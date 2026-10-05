@@ -163,7 +163,7 @@ await step('the invoice edit control is a labelled button', async () => {
   if (!(await edit.count())) throw new Error('no edit control in the invoice top bar');
   if ((await edit.textContent()).trim() !== 'Edit')
     throw new Error('edit control reads "' + (await edit.textContent()).trim() + '"');
-  if (await edit.locator('svg').count()) throw new Error('edit control is still an icon');
+  if (!(await edit.locator('svg').count())) throw new Error('edit control has no icon');
 });
 
 await step('the unit edit control is labelled too', async () => {
@@ -175,7 +175,7 @@ await step('the unit edit control is labelled too', async () => {
   if (!(await edit.count())) throw new Error('no edit control on the unit screen');
   if ((await edit.textContent()).trim() !== 'Edit')
     throw new Error('edit control reads "' + (await edit.textContent()).trim() + '"');
-  if (await edit.locator('svg').count()) throw new Error('edit control is still an icon');
+  if (!(await edit.locator('svg').count())) throw new Error('edit control has no icon');
 });
 
 await step('the sendable image still renders', async () => {
