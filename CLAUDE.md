@@ -97,3 +97,10 @@ visible there while every assertion passed.
   written before this one still opens from older readings and the stretch
   between them would be charged twice. Changing a closing reading or deleting a
   bill breaks the same chain and is not covered yet.
+- **Nothing a save does may be written before the last question is answered.**
+  The overlap question above has three outcomes, so it is an in-app box with a
+  button each, not `confirm` — people read Cancel as "take me back", and an
+  OK/Cancel box cannot say which of three things Cancel means. Deleting the
+  bill a save replaces used to happen before that question, so backing out
+  would have destroyed it. All of it now runs in one `commit()` after the last
+  answer.

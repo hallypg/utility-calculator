@@ -834,6 +834,10 @@ await step('the form follows the month picker, prefill and all', async () => {
     await page.fill('#b-elecCurr', '250');
     await page.fill('#b-waterCurr', '25');
     await page.click('#actionbar button[type="submit"]');
+    // March sits after it, so the overlap question comes first; this step is
+    // about the prefill, so take the option that changes nothing else.
+    await page.waitForSelector('#chain-slot .confirm');
+    await page.click('#chain-only');
     await page.waitForTimeout(500);
     const feb = await page.evaluate(async () => {
       const s = await import('./js/store.js');
@@ -852,6 +856,8 @@ await step('the form follows the month picker, prefill and all', async () => {
     if (v.elecPrev !== '100')
       throw new Error('editing rewrote a saved opening: ' + v.elecPrev);
     if (!/May 2026/.test(v.total)) throw new Error('total label did not follow: ' + v.total);
+    const sub = (await page.textContent('#topbar .sub')).trim();
+    if (!/May 2026/.test(sub)) throw new Error('the header still names another month: ' + sub);
   } finally {
     await page.evaluate(raw => localStorage.setItem('rmu.v1', raw), snapshot);
     await page.goto(BASE + '/index.html#/units');
@@ -877,15 +883,15 @@ await step('backfilling a gap offers to carry the later bill on', async () => {
       return u;
     });
 
-    // Fill the February gap, answering the question as asked.
-    const backfill = async (elec, answer) => {
-      await page.evaluate(async () => {
+    // Reset, then fill the February gap and stop at the question.
+    const askFeb = async (elec, paid) => {
+      await page.evaluate(async isPaid => {
         const s = await import('./js/store.js');
         const m = s.State.data.bills.find(x => x.id === 'mar');
-        m.elecPrev = 100; m.waterPrev = 10;
+        m.elecPrev = 100; m.waterPrev = 10; m.paid = isPaid;
         s.State.data.bills = s.State.data.bills.filter(x => x.month !== '2026-02');
         s.State.save();
-      });
+      }, !!paid);
       await page.goto(BASE + '/index.html#/bill/' + unit + '/new');
       await page.reload({ waitUntil: 'networkidle' });
       await page.waitForSelector('#b-elecPrev');
@@ -894,46 +900,66 @@ await step('backfilling a gap offers to carry the later bill on', async () => {
       await page.waitForTimeout(200);
       await page.fill('#b-elecCurr', String(elec));
       await page.fill('#b-waterCurr', '25');
-      let seen = null;
-      page.once('dialog', async dlg => {
-        seen = { type: dlg.type(), message: dlg.message() };
-        await (answer ? dlg.accept() : dlg.dismiss());
-      });
       await page.click('#actionbar button[type="submit"]');
-      await page.waitForTimeout(600);
-      return seen;
+      await page.waitForSelector('#chain-slot .confirm');
+      return (await page.textContent('#chain-slot')).replace(/\s+/g, ' ').trim();
     };
     const march = () => page.evaluate(async () => {
       const s = await import('./js/store.js');
       const m = s.State.data.bills.find(x => x.id === 'mar');
       return `${m.elecPrev}/${m.waterPrev}`;
     });
-    const usedAcross = () => page.evaluate(async () => {
+    const february = () => page.evaluate(async () => {
+      const s = await import('./js/store.js');
+      return s.State.data.bills.some(x => x.month === '2026-02');
+    });
+
+    // Every outcome is its own button: an OK/Cancel box cannot say which of
+    // the three Cancel means, and people read it as "take me back".
+    let text = await askFeb(250);
+    if (!/March 2026/.test(text)) throw new Error('the question reads: ' + text);
+    if (!/320\.00/.test(text) || !/155\.00/.test(text))
+      throw new Error('the question does not state the change in total: ' + text);
+    let buttons = await page.$$eval('#chain-slot .btn', els => els.map(e => e.textContent.trim()));
+    if (buttons.length !== 3) throw new Error('buttons are ' + JSON.stringify(buttons));
+
+    // Going back writes nothing and stays on the form.
+    await page.click('#chain-back');
+    await page.waitForTimeout(300);
+    if (!/#\/bill\//.test(page.url())) throw new Error('going back left the form: ' + page.url());
+    if ((await page.textContent('#chain-slot')).trim()) throw new Error('the question is still on screen');
+    if (await february()) throw new Error('going back saved the bill anyway');
+    if (await march() !== '100/10') throw new Error('going back rewrote March: ' + await march());
+
+    // Saving without touching March leaves it exactly as it was.
+    await askFeb(250);
+    await page.click('#chain-only');
+    await page.waitForTimeout(500);
+    if (!await february()) throw new Error('the bill was not saved');
+    if (await march() !== '100/10') throw new Error('March was rewritten anyway: ' + await march());
+
+    // Carrying March on is what stops the overlap being charged twice.
+    await askFeb(250);
+    await page.click('#chain-carry');
+    await page.waitForTimeout(500);
+    if (await march() !== '250/25') throw new Error('March opens at ' + await march() + ', expected 250/25');
+    // The meter moved 0 -> 300, so that is what the three bills must total.
+    const used = await page.evaluate(async () => {
       const s = await import('./js/store.js');
       return s.State.data.bills.reduce((n, x) => n + s.compute(x).elecUsed, 0);
     });
-
-    // Accepting rewrites March to open where February ends, which is what
-    // stops the stretch between them being charged on both.
-    let dlg = await backfill(250, true);
-    if (!dlg || dlg.type !== 'confirm') throw new Error('no question was asked: ' + JSON.stringify(dlg));
-    if (!/March 2026/.test(dlg.message)) throw new Error('the question reads: ' + dlg.message);
-    if (!/320\.00/.test(dlg.message) || !/155\.00/.test(dlg.message))
-      throw new Error('the question does not state the change in total: ' + dlg.message);
-    if (await march() !== '250/25') throw new Error('March opens at ' + await march() + ', expected 250/25');
-    // The meter moved 0 -> 300, so that is what the three bills must total.
-    const used = await usedAcross();
     if (used !== 300) throw new Error(used + ' units billed across the three, the meter moved 300');
 
-    // Declining leaves the later bill exactly as it was.
-    dlg = await backfill(250, false);
-    if (await march() !== '100/10') throw new Error('declining still rewrote March: ' + await march());
+    // A February ending above March cannot be carried on from, so that
+    // button is not offered at all.
+    text = await askFeb(350);
+    buttons = await page.$$eval('#chain-slot .btn', els => els.map(e => e.textContent.trim()));
+    if (buttons.length !== 2) throw new Error('a carry-on was offered for an impossible chain: ' + JSON.stringify(buttons));
+    if (!/Check the readings/.test(text)) throw new Error('the warning reads: ' + text);
 
-    // A February ending above March cannot be carried on from; that is a
-    // reading to check, so it says so and touches nothing.
-    dlg = await backfill(350, true);
-    if (!dlg || dlg.type !== 'alert') throw new Error('expected a plain warning, got ' + JSON.stringify(dlg));
-    if (await march() !== '100/10') throw new Error('an impossible carry-on was written anyway');
+    // A March already paid says so before anything is changed.
+    text = await askFeb(250, true);
+    if (!/already marked paid/.test(text)) throw new Error('no warning about the paid bill: ' + text);
 
     // Nothing later means nothing to ask about.
     await page.evaluate(async () => {
@@ -949,11 +975,56 @@ await step('backfilling a gap offers to carry the later bill on', async () => {
     await page.waitForTimeout(200);
     await page.fill('#b-elecCurr', '400');
     await page.fill('#b-waterCurr', '40');
-    let asked = false;
-    page.once('dialog', async d2 => { asked = true; await d2.accept(); });
     await page.click('#actionbar button[type="submit"]');
     await page.waitForTimeout(600);
-    if (asked) throw new Error('billing the newest month asked about a later bill');
+    if (!/#\/invoice\//.test(page.url()))
+      throw new Error('billing the newest month did not save straight through: ' + page.url());
+  } finally {
+    await page.evaluate(raw => localStorage.setItem('rmu.v1', raw), snapshot);
+    await page.goto(BASE + '/index.html#/units');
+    await page.reload({ waitUntil: 'networkidle' });
+  }
+});
+
+await step('backing out of a replacement keeps the bill it would replace', async () => {
+  const snapshot = await page.evaluate(() => localStorage.getItem('rmu.v1'));
+  try {
+    const unit = await page.evaluate(async () => {
+      const s = await import('./js/store.js');
+      const d = s.State.data;
+      const u = d.units[0].id;
+      const bill = (id, month, ep, ec, wp, wc) => ({
+        id, unitId: u, month, issuedOn: month + '-28',
+        elecPrev: ep, elecCurr: ec, waterPrev: wp, waterCurr: wc,
+        elecRate: 1, waterRate: 1, rent: 100, paid: false
+      });
+      d.bills = [bill('jan', '2026-01', 0, 100, 0, 10), bill('mar', '2026-03', 100, 300, 10, 30)];
+      s.State.save();
+      return u;
+    });
+
+    // Replace January, say yes to replacing it, then back out of the
+    // question that follows. Nothing may have been deleted by then.
+    await page.goto(BASE + '/index.html#/bill/' + unit + '/new');
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForSelector('#b-elecPrev');
+    await page.selectOption('#b-month-m', '01');
+    await page.selectOption('#b-month-y', '2026');
+    await page.waitForTimeout(200);
+    await page.fill('#b-elecCurr', '90');
+    await page.fill('#b-waterCurr', '9');
+    page.once('dialog', d => d.accept());
+    await page.click('#actionbar button[type="submit"]');
+    await page.waitForSelector('#chain-slot .confirm');
+    await page.click('#chain-back');
+    await page.waitForTimeout(300);
+
+    const jan = await page.evaluate(async () => {
+      const s = await import('./js/store.js');
+      const j = s.State.data.bills.find(x => x.month === '2026-01');
+      return j ? `${j.elecPrev}->${j.elecCurr}` : 'gone';
+    });
+    if (jan !== '0->100') throw new Error('the bill being replaced reads ' + jan + ', expected 0->100');
   } finally {
     await page.evaluate(raw => localStorage.setItem('rmu.v1', raw), snapshot);
     await page.goto(BASE + '/index.html#/units');

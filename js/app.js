@@ -487,6 +487,7 @@ function viewBill(unitId, month, forceNew) {
     bar: true,
     body: `
       <div id="carried-slot">${carried}</div>
+      <div id="chain-slot"></div>
       <form id="bill-form">
         <div class="card">
           <div class="field" style="margin-bottom:0">
@@ -581,6 +582,8 @@ function viewBill(unitId, month, forceNew) {
         if (m === shownMonth) return;
         shownMonth = m;
 
+        const sub = document.querySelector('#topbar .sub');
+        if (sub) sub.textContent = `${u.label}${u.tenantName ? ` · ${u.tenantName}` : ''} · ${monthLabel(m)}`;
         document.getElementById('b-rent-head').textContent =
           t('bill.rentFor', { month: monthLabel(shiftMonth(m, 1)) });
         document.getElementById('total-lbl').textContent =
@@ -607,50 +610,16 @@ function viewBill(unitId, month, forceNew) {
       form.addEventListener('input', refresh);
       refresh();
 
-      form.addEventListener('submit', e => {
-        e.preventDefault();
-        const d = read();
-        const found = problems(d);
-        shownErrors = Object.fromEntries(found);
-        refresh();
-        if (found.length) {
-          toast(t('bill.fixFirst'));
-          document.getElementById(`${found[0][0]}-err`)
-            .scrollIntoView({ behavior: 'smooth', block: 'center' });
-          return;
-        }
-        const clash = State.data.bills.find(x =>
-          x.unitId === unitId && x.month === d.month && x.id !== (existing?.id));
-        if (clash && !confirm(t('bill.confirmReplace', { month: monthLabel(d.month) }))) return;
+      /* Nothing is written until this runs, so backing out of the question
+         below leaves every bill exactly as it was -- including one this
+         save would have replaced. */
+      const commit = (d, clash, carry) => {
         if (clash) deleteBill(clash.id);
 
-        /* A bill saved before an existing one leaves that one opening from
-           older readings, so the stretch between them would be billed on
-           both. Offer to carry the later bill on from this one. */
         let fixedMonth = null;
-        const follower = nextBill(unitId, d.month);
-        const closes = { elec: Number(d.elecCurr) || 0, water: Number(d.waterCurr) || 0 };
-        const drifted = follower &&
-          (Number(follower.elecPrev) !== closes.elec || Number(follower.waterPrev) !== closes.water);
-
-        if (drifted) {
-          const month = monthLabel(follower.month);
-          // A later bill cannot end below where this one ends; that is a
-          // reading to check, not a gap to close.
-          if (Number(follower.elecCurr) < closes.elec || Number(follower.waterCurr) < closes.water) {
-            alert(t('bill.chainBlocked', { month }));
-          } else {
-            const after = { ...follower, elecPrev: closes.elec, waterPrev: closes.water };
-            const ask = t('bill.chainAsk', {
-              month,
-              before: money(compute(follower).total),
-              after: money(compute(after).total)
-            }) + (follower.paid ? '\n\n' + t('bill.chainPaid', { month }) : '');
-            if (confirm(ask)) {
-              saveBill({ id: follower.id, elecPrev: closes.elec, waterPrev: closes.water });
-              fixedMonth = month;
-            }
-          }
+        if (carry) {
+          saveBill({ id: carry.id, elecPrev: carry.elecPrev, waterPrev: carry.waterPrev });
+          fixedMonth = monthLabel(carry.month);
         }
 
         const runNext = billRun
@@ -679,6 +648,76 @@ function viewBill(unitId, month, forceNew) {
         billRun = false;
         toast(fixedMonth ? t('bill.chainFixed', { month: fixedMonth }) : t('bill.saved'));
         nav(`#/invoice/${id}`);
+      };
+
+      const chainSlot = document.getElementById('chain-slot');
+      const clearChain = () => { chainSlot.innerHTML = ''; };
+      form.addEventListener('input', clearChain);
+
+      /* One button per outcome. An OK/Cancel box cannot say which of the
+         three is which, and people read Cancel as "take me back". */
+      const askChain = (d, clash, follower, closes) => {
+        const month = monthLabel(follower.month);
+        const blocked = Number(follower.elecCurr) < closes.elec
+          || Number(follower.waterCurr) < closes.water;
+        const after = { ...follower, elecPrev: closes.elec, waterPrev: closes.water };
+
+        chainSlot.innerHTML = `
+          <div class="confirm warn">
+            <p><strong>${esc(blocked
+              ? t('bill.chainBlockedTitle', { month })
+              : t('bill.chainTitle', { month }))}</strong><br>${esc(blocked
+                ? t('bill.chainBlocked', { month })
+                : t('bill.chainBody', {
+                    month,
+                    before: money(compute(follower).total),
+                    after: money(compute(after).total)
+                  }))}${!blocked && follower.paid
+                ? `<br><br>${esc(t('bill.chainPaid', { month }))}` : ''}</p>
+            <div class="choices">
+              ${blocked ? '' : `<button type="button" class="btn primary" id="chain-carry">${esc(t('bill.chainCarry', { month }))}</button>`}
+              <button type="button" class="btn" id="chain-only">${esc(t('bill.chainOnly', { month }))}</button>
+              <button type="button" class="btn" id="chain-back">${esc(t('bill.chainBack'))}</button>
+            </div>
+          </div>`;
+        chainSlot.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        document.getElementById('chain-carry')?.addEventListener('click', () =>
+          commit(d, clash, { id: follower.id, month: follower.month, elecPrev: closes.elec, waterPrev: closes.water }));
+        document.getElementById('chain-only').addEventListener('click', () => commit(d, clash, null));
+        document.getElementById('chain-back').addEventListener('click', () => {
+          clearChain();
+          document.getElementById('b-elecCurr').focus();
+        });
+      };
+
+      form.addEventListener('submit', e => {
+        e.preventDefault();
+        clearChain();
+        const d = read();
+        const found = problems(d);
+        shownErrors = Object.fromEntries(found);
+        refresh();
+        if (found.length) {
+          toast(t('bill.fixFirst'));
+          document.getElementById(`${found[0][0]}-err`)
+            .scrollIntoView({ behavior: 'smooth', block: 'center' });
+          return;
+        }
+        const clash = State.data.bills.find(x =>
+          x.unitId === unitId && x.month === d.month && x.id !== (existing?.id));
+        if (clash && !confirm(t('bill.confirmReplace', { month: monthLabel(d.month) }))) return;
+
+        /* A bill saved before an existing one leaves that one opening from
+           older readings, so the stretch between them would be billed on
+           both. */
+        const follower = nextBill(unitId, d.month);
+        const closes = { elec: Number(d.elecCurr) || 0, water: Number(d.waterCurr) || 0 };
+        const drifted = follower &&
+          (Number(follower.elecPrev) !== closes.elec || Number(follower.waterPrev) !== closes.water);
+
+        if (drifted) return askChain(d, clash, follower, closes);
+        commit(d, clash, null);
       });
 
       document.getElementById('del-bill')?.addEventListener('click', () => {

@@ -571,3 +571,10 @@ main.has-bar { padding-bottom: calc(176px + env(safe-area-inset-bottom)); }
 }
 .confirm p { margin: 0; font-size: 14px; color: var(--danger); line-height: 1.45; }
 .confirm .two { gap: 8px; }
+
+/* A caution, not a deletion: same box, the colour of a warning. */
+.confirm.warn { background: var(--warn-soft); }
+.confirm.warn p { color: var(--warn); }
+/* One button per line; three of these never fit side by side on a phone. */
+.confirm .choices { display: flex; flex-direction: column; gap: 8px; }
+.confirm .choices .btn { width: 100%; }
